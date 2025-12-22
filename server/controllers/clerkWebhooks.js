@@ -9,44 +9,41 @@ const clerkWebhooks = async (req, res) => {
             "svix-timestamp": req.headers['svix-timestamp'],
             "svix-signature": req.headers['svix-signature']
         }
+
+        // Note: For this to work reliably, req.body must match the raw payload. 
+        // See server.js fix below.
         await whook.verify(JSON.stringify(req.body), headers);
 
-
         const { type, data } = req.body;
-        const userData = {
-            _id: data.id,
-            email: data.email_addresses[0].email_address,
-            username: data.first_name + " " + data.last_name,
-            image: data.image_url
-        }
+
         switch (type) {
-            case "user.created": {
-                await User.create(userData);
-                break;
-            }
+            case "user.created":
             case "user.updated": {
-                await User.findByIdAndUpdate(userData._id, userData);
+                // Only extract these fields for create/update
+                const userData = {
+                    _id: data.id,
+                    email: data.email_addresses[0].email_address,
+                    username: data.first_name + " " + data.last_name,
+                    image: data.image_url
+                };
+                
+                // upsert: true ensures we create if it doesn't exist, update if it does
+                await User.findByIdAndUpdate(data.id, userData, { upsert: true });
                 break;
             }
             case "user.deleted": {
-                await User.findByIdAndDelete(userData._id);
+                // For delete, we only have data.id
+                await User.findByIdAndDelete(data.id);
                 break;
             }
-
             default:
                 break;
         }
-        res.json({
-            message: 'Webhook received successfully',
-            success: true
-        })
+        res.json({ success: true, message: 'Webhook received' });
 
     } catch (error) {
-        console.log(error.message)
-        res.json({
-            message: 'Webhook Error: ' + error.message,
-            success: false
-        })
+        console.log("Webhook Error:", error.message);
+        res.status(400).json({ success: false, message: error.message });
     }
 }
 

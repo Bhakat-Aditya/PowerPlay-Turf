@@ -2,8 +2,9 @@ import axios from "axios";
 import { createContext, useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser, useAuth } from "@clerk/clerk-react";
-import { getToken } from "@clerk/clerk-sdk-node";
-import { toast } from "react-hot-toast";
+// 1. REMOVED the incorrect import
+// import { getToken } from "@clerk/clerk-sdk-node";
+import { toast } from "react-hot-toast"; // Ensure you have installed 'react-hot-toast'
 
 axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
 
@@ -13,23 +14,28 @@ export const AppProvider = ({ children }) => {
   const currency = import.meta.env.VITE_CURRENCY || "₹";
   const navigate = useNavigate();
   const { user } = useUser();
-  const { token } = useAuth();
+
+  // 2. FIXED: Destructure 'getToken' from useAuth()
+  const { getToken } = useAuth();
+
   const [isOwner, setIsOwner] = useState(false);
 
   const fetchUser = async () => {
     try {
-      const data = await axios.get("/api/user", {
-        headers: { Authorization: `Bearer ${await getToken()}` },
+      // 3. FIXED: Get the token correctly using the hook function
+      const token = await getToken();
+
+      // 4. FIXED: Destructure { data } from axios response
+      const { data } = await axios.get("/api/user", {
+        headers: { Authorization: `Bearer ${token}` },
       });
+
       if (data.success) {
         setIsOwner(data.role === "owner");
-      } else {
-        setTimeout(() => {
-          fetchUser();
-        }, 5000);
       }
     } catch (error) {
-        toast.error("Error fetching user data" + error.message);
+      console.error(error);
+      toast.error("Error fetching user data");
     }
   };
 
@@ -39,7 +45,17 @@ export const AppProvider = ({ children }) => {
     }
   }, [user]);
 
-  const value = { currency, navigate, user, token, isOwner, setIsOwner, axios };
+  // 5. Pass getToken in the value so other components can use it
+  const value = {
+    currency,
+    navigate,
+    user,
+    getToken,
+    isOwner,
+    setIsOwner,
+    axios,
+  };
+
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
