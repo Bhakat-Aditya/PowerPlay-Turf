@@ -3,8 +3,8 @@ import Navbar from "./components/Navbar";
 import { Route, Routes, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
 // 1. Import pages
-import Facilities from "./components/Facilities";
-import FacilityDetails from "./components/FacilityDetails";
+import Facilities from "./pages/Facilities";
+import FacilityDetails from "./pages/FacilityDetails";
 // 2. Import Footer
 import Footer from "./components/Footer";
 
