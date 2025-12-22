@@ -1,7 +1,8 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import logo from "../assets/logo.png";
 import React, { useEffect, useState } from "react";
-import { useClerk, useUser, UserButton } from "@clerk/clerk-react";
+import { useClerk, UserButton } from "@clerk/clerk-react";
+import { useAppContext } from "../context/AppContext";
 
 const BookIcon = () => (
   <svg
@@ -36,9 +37,9 @@ const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { openSignIn } = useClerk();
-  const { user } = useUser();
-  const navigate = useNavigate();
   const location = useLocation();
+
+  const { user, navigate, isOwner } = useAppContext();
 
   useEffect(() => {
     if (location.pathname !== "/") {
@@ -91,14 +92,17 @@ const Navbar = () => {
             />
           </Link>
         ))}
-        <button
-          className={`border px-4 py-1 text-sm font-light rounded-full cursor-pointer ${
-            isScrolled ? "text-black" : "text-white"
-          } transition-all`}
-          onClick={() => navigate("/owner")}
-        >
-          Dashboard
-        </button>
+
+        {isOwner && (
+          <button
+            className={`border px-4 py-1 text-sm font-light rounded-full cursor-pointer ${
+              isScrolled ? "text-black" : "text-white"
+            } transition-all`}
+            onClick={() => (isOwner ? navigate("/owner") : null)}
+          >
+            {isOwner ? "Dashboard" : ""}
+          </button>
+        )}
       </div>
 
       {/* Desktop Right */}
@@ -197,10 +201,10 @@ const Navbar = () => {
 
         {user && (
           <button
-            onClick={() => navigate("/owner")}
+            onClick={() => (isOwner ? navigate("/owner") : null)}
             className="border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all"
           >
-            Dashboard
+            {isOwner ? "Dashboard" : ""}
           </button>
         )}
         {!user && (

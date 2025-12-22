@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import Facilities from "./pages/Facilities"; // Assuming this exists based on our chat
 import FacilityDetails from "./pages/FacilityDetails"; // Assuming this exists based on our chat
 import Footer from "./components/Footer";
+import {Toaster} from 'react-hot-toast';
 
 // 1. Import MyBookings
 import MyBookings from "./pages/MyBookings";
@@ -14,6 +15,7 @@ function App() {
 
   return (
     <div className="flex flex-col min-h-screen">
+      <Toaster/>
       {/* Navbar (hidden on owner dashboard) */}
       {!isOwnerPath && <Navbar />}
 
