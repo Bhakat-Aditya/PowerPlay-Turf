@@ -9,6 +9,7 @@ import bodyParser from 'body-parser'; // Make sure to npm install body-parser
 import clerkWebhooks from './controllers/clerkWebhooks.js';
 import userRouter from './routes/userRoutes.js';
 import bookingRouter from './routes/bookingRoutes.js'; // <--- Import this
+import turfRouter from './routes/turfRoutes.js'; // Import this
 
 connectDB();
 const app = express();
@@ -32,6 +33,7 @@ app.get('/', (req, res) => {
 // 3. Register Routes
 app.use('/api/user', userRouter);
 app.use('/api/bookings', bookingRouter); // <--- Add this line
+app.use('/api/turfs', turfRouter); // Add this line
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
