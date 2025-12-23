@@ -1,13 +1,16 @@
 import express from 'express';
-import { checkAvailabilityAPI, createBooking, getUserBookings, cancelBooking } from '../controllers/bookingController.js'; // Import cancelBooking
+import { createBooking, getUserBookings, cancelBooking } from '../controllers/bookingController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 
-const bookingRouter = express.Router();
+const router = express.Router();
 
-bookingRouter.post('/check-availability', checkAvailabilityAPI);
-bookingRouter.post('/book', protect, createBooking);
-bookingRouter.get('/user', protect, getUserBookings);
-bookingRouter.put('/cancel/:id', protect, cancelBooking); // Add this line
+// Route to create a new booking
+router.post('/book', protect, createBooking);
 
-export default bookingRouter;
+// Route to get all bookings for the logged-in user
+router.get('/user', protect, getUserBookings);
 
+// Route to cancel a booking
+router.put('/cancel/:id', protect, cancelBooking);
+
+export default router;

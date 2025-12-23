@@ -3,13 +3,14 @@ import "dotenv/config";
 import cors from 'cors';
 import connectDB from './configs/db.js';
 import { clerkMiddleware } from '@clerk/express';
-import bodyParser from 'body-parser'; // Make sure to npm install body-parser
+import bodyParser from 'body-parser'; 
 
 // Controllers & Routes
 import clerkWebhooks from './controllers/clerkWebhooks.js';
 import userRouter from './routes/userRoutes.js';
-import bookingRouter from './routes/bookingRoutes.js'; // <--- Import this
-import turfRouter from './routes/turfRoutes.js'; // Import this
+import bookingRouter from './routes/bookingRoutes.js';
+import turfRouter from './routes/turfRoutes.js';
+// REMOVED: import paymentRouter ... (To stop Razorpay crash)
 
 connectDB();
 const app = express();
@@ -17,8 +18,7 @@ const app = express();
 app.use(cors());
 app.use(clerkMiddleware());
 
-// 1. Webhook Route (MUST be before express.json)
-// We use bodyParser.json() specifically for this route to ensure signature verification works
+// 1. Webhook Route
 app.post("/api/clerk", bodyParser.json(), clerkWebhooks);
 
 // 2. Standard Middleware
@@ -32,8 +32,9 @@ app.get('/', (req, res) => {
 
 // 3. Register Routes
 app.use('/api/user', userRouter);
-app.use('/api/bookings', bookingRouter); // <--- Add this line
-app.use('/api/turfs', turfRouter); // Add this line
+app.use('/api/bookings', bookingRouter);
+app.use('/api/turfs', turfRouter);
+// REMOVED: app.use('/api/payment', paymentRouter); (To stop Razorpay crash)
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
