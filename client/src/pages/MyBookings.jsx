@@ -36,7 +36,7 @@ const MyBookings = () => {
     try {
       const token = await getToken();
       const { data } = await axios.put(
-        `http://localhost:3000/api/bookings/cancel/${bookingId}`,
+        `https://power-play-turf-backend.vercel.app/api/bookings/cancel/${bookingId}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
