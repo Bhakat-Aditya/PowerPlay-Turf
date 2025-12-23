@@ -34,7 +34,7 @@ const MyBookings = () => {
       }
     } catch (error) {
       console.error(error);
-      toast.error("Failed to fetch bookings");
+      // toast.error("Failed to fetch bookings"); // Suppress specific error to avoid spam on load
     } finally {
       setLoading(false);
     }
@@ -59,8 +59,8 @@ const MyBookings = () => {
       );
 
       if (data.success) {
-        toast.success(data.message, { duration: 5000 });
-        fetchBookings(); // Refresh to show refund status
+        toast.success(data.message);
+        fetchBookings(); // Refresh UI
       } else {
         toast.error(data.message);
       }
@@ -73,7 +73,7 @@ const MyBookings = () => {
   const handlePayNow = async (bookingId) => {
     const isScriptLoaded = await loadRazorpayScript();
     if (!isScriptLoaded) {
-      toast.error("Razorpay SDK failed to load. Check internet.");
+      toast.error("Razorpay SDK failed to load.");
       return;
     }
 
@@ -96,7 +96,7 @@ const MyBookings = () => {
 
       // B. Open Popup
       const options = {
-        key: "YOUR_RAZORPAY_KEY_ID_HERE", // REPLACE THIS WITH YOUR KEY_ID
+        key: "YOUR_RAZORPAY_TEST_KEY_HERE", // ⚠️ PASTE YOUR RAZORPAY TEST KEY HERE
         amount: order.amount,
         currency: "INR",
         name: "PowerPlay Turf",
@@ -142,7 +142,7 @@ const MyBookings = () => {
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Loading bookings...
+        Loading...
       </div>
     );
 
@@ -162,135 +162,124 @@ const MyBookings = () => {
             {bookings.map((booking) => (
               <div
                 key={booking._id}
-                className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow duration-300"
+                className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row"
               >
-                <div className="flex flex-col md:flex-row">
-                  {/* Image */}
-                  <div className="md:w-1/3 h-48 md:h-auto bg-gray-200 relative">
-                    <img
-                      src={
-                        booking.turf?.images?.[0] ||
-                        booking.turf?.image ||
-                        "https://placehold.co/400?text=No+Image"
-                      }
-                      alt="Turf"
-                      className="w-full h-full object-cover"
-                      onError={(e) =>
-                        (e.target.src =
-                          "https://placehold.co/400?text=Image+Error")
-                      }
-                    />
-                    <div className="absolute top-2 left-2">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-sm ${
-                          booking.status === "booked"
-                            ? "bg-green-500 text-white"
-                            : booking.status === "cancelled"
-                            ? "bg-red-500 text-white"
-                            : "bg-gray-500 text-white"
-                        }`}
-                      >
-                        {booking.status}
-                      </span>
-                    </div>
+                {/* Image Section */}
+                <div className="md:w-1/3 h-48 md:h-auto bg-gray-200 relative">
+                  <img
+                    src={
+                      booking.turf?.images?.[0] ||
+                      booking.turf?.image ||
+                      "https://placehold.co/400?text=No+Image"
+                    }
+                    alt="Turf"
+                    className="w-full h-full object-cover"
+                    onError={(e) =>
+                      (e.target.src = "https://placehold.co/400?text=Error")
+                    }
+                  />
+                  <div className="absolute top-2 left-2">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-sm ${
+                        booking.status === "booked"
+                          ? "bg-green-500 text-white"
+                          : booking.status === "cancelled"
+                          ? "bg-red-500 text-white"
+                          : "bg-gray-500 text-white"
+                      }`}
+                    >
+                      {booking.status}
+                    </span>
                   </div>
+                </div>
 
-                  {/* Details */}
-                  <div className="p-6 md:w-2/3 flex flex-col justify-between">
-                    <div>
-                      <h3 className="text-2xl font-bold text-gray-800">
-                        {booking.turf?.name || "Unknown Turf"}
-                      </h3>
-                      <p className="text-gray-500 text-sm mb-4">
-                        📍 {booking.turf?.location || "Location unavailable"}
-                      </p>
+                {/* Details Section */}
+                <div className="p-6 md:w-2/3 flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-800">
+                      {booking.turf?.name || "Unknown Turf"}
+                    </h3>
+                    <p className="text-gray-500 text-sm mb-4">
+                      📍 {booking.turf?.location || "Location unavailable"}
+                    </p>
 
-                      <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
-                        <div>
-                          <p className="text-gray-400 font-medium">Date</p>
-                          <p className="font-semibold text-gray-700">
-                            {new Date(booking.date).toLocaleDateString(
-                              "en-US",
-                              {
-                                weekday: "short",
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              }
-                            )}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-gray-400 font-medium">Time</p>
-                          <p className="font-semibold text-gray-700">
-                            {booking.timeSlot}
-                          </p>
-                        </div>
+                    <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                      <div>
+                        <p className="text-gray-400 font-medium">Date</p>
+                        <p className="font-semibold text-gray-700">
+                          {new Date(booking.date).toLocaleDateString("en-US", {
+                            weekday: "short",
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 font-medium">Time</p>
+                        <p className="font-semibold text-gray-700">
+                          {booking.timeSlot}
+                        </p>
+                      </div>
 
-                        {/* Amount / Refund Display */}
-                        <div>
-                          <p className="text-gray-400 font-medium">
-                            Total Amount
-                          </p>
-                          {booking.status === "cancelled" ? (
-                            <div>
-                              <span className="line-through text-gray-400 text-xs mr-2">
-                                ₹{booking.amount}
-                              </span>
-                              <span className="block text-red-600 font-bold text-lg">
-                                Refund: ₹
-                                {booking.refundAmount !== undefined
-                                  ? booking.refundAmount
-                                  : booking.amount}
-                              </span>
-                            </div>
-                          ) : (
-                            <p className="font-bold text-lg text-gray-900">
+                      {/* Total Amount / Refund Logic */}
+                      <div>
+                        <p className="text-gray-400 font-medium">
+                          Total Amount
+                        </p>
+                        {booking.status === "cancelled" ? (
+                          <div>
+                            <span className="line-through text-gray-400 text-xs mr-2">
                               ₹{booking.amount}
-                            </p>
-                          )}
-                        </div>
+                            </span>
+                            <span className="block text-red-600 font-bold text-lg">
+                              Refunded: ₹{booking.refundAmount}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="font-bold text-lg text-gray-900">
+                            ₹{booking.amount}
+                          </p>
+                        )}
+                      </div>
 
-                        <div>
-                          <p className="text-gray-400 font-medium">
-                            Payment Status
-                          </p>
-                          <p
-                            className={`font-semibold ${
-                              booking.isPaid
-                                ? "text-green-600"
-                                : "text-yellow-600"
-                            }`}
-                          >
-                            {booking.isPaid ? "Paid" : "Pending"}
-                          </p>
-                        </div>
+                      <div>
+                        <p className="text-gray-400 font-medium">Payment</p>
+                        <p
+                          className={`font-semibold ${
+                            booking.isPaid
+                              ? "text-green-600"
+                              : "text-yellow-600"
+                          }`}
+                        >
+                          {booking.isPaid ? "Paid" : "Pending"}
+                        </p>
                       </div>
                     </div>
-
-                    {/* Actions */}
-                    {booking.status === "booked" && (
-                      <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col sm:flex-row gap-3 items-center">
-                        {!booking.isPaid && (
-                          <button
-                            onClick={() => handlePayNow(booking._id)}
-                            className="w-full sm:w-auto bg-black text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-gray-800 transition-colors"
-                          >
-                            Pay Now
-                          </button>
-                        )}
-
-                        <div className="flex-grow"></div>
-
-                        <button
-                          onClick={() => handleCancel(booking._id)}
-                          className="w-full sm:w-auto text-red-500 hover:text-white hover:bg-red-500 border border-red-200 px-4 py-2 rounded-lg font-semibold transition-all duration-300 text-sm"
-                        >
-                          Cancel Booking
-                        </button>
-                      </div>
-                    )}
                   </div>
+
+                  {/* Buttons */}
+                  {booking.status === "booked" && (
+                    <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col sm:flex-row gap-3 items-center">
+                      {!booking.isPaid && (
+                        <button
+                          onClick={() => handlePayNow(booking._id)}
+                          className="w-full sm:w-auto bg-black text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-gray-800 transition-colors"
+                        >
+                          Pay Now
+                        </button>
+                      )}
+
+                      <div className="flex-grow"></div>
+
+                      <button
+                        onClick={() => handleCancel(booking._id)}
+                        className="w-full sm:w-auto text-red-500 border border-red-200 px-4 py-2 rounded-lg font-semibold hover:bg-red-50 transition-all text-sm"
+                      >
+                        Cancel Booking
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
