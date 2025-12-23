@@ -31,7 +31,7 @@ const FacilityDetails = () => {
     const fetchTurf = async () => {
       try {
         const { data } = await axios.get(
-          `http://localhost:3000/api/turfs/${id}`
+          `https://power-play-turf-backend.vercel.app/api/turfs/${id}`
         );
         if (data.success) setTurf(data.turf);
       } catch (error) {

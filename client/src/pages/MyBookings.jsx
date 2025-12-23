@@ -12,7 +12,7 @@ const MyBookings = () => {
     try {
       const token = await getToken();
       const { data } = await axios.get(
-        "http://localhost:3000/api/bookings/user",
+        "https://power-play-turf-backend.vercel.app/api/bookings/user",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
