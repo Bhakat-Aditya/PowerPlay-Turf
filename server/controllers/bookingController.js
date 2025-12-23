@@ -1,79 +1,87 @@
 import Booking from '../models/Booking.js';
 import Turf from '../models/Turf.js';
+import Razorpay from 'razorpay';
+import "dotenv/config";
 
-// --- HELPER: Check if a slot is free ---
-const checkTurfAvailability = async (turfId, date, timeSlot) => {
-    try {
-        const bookings = await Booking.find({
-            turf: turfId,
-            date: date,
-            timeSlot: timeSlot
-        });
-        // If array is empty, it's available. 
-        // Note: Exclude cancelled bookings from this check if you want them to be re-bookable.
-        const activeBookings = bookings.filter(b => b.status !== 'cancelled');
-        return activeBookings.length === 0;
-    } catch (error) {
-        console.log("Availability Check Error:", error.message);
-        return false;
-    }
-}
+// --- 0. Initialize Razorpay (Required for Automatic Refunds) ---
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
-// --- API: Check Availability (Public) ---
-export const checkAvailabilityAPI = async (req, res) => {
-    try {
-        const { turfId, date, timeSlot } = req.body;
-        const isAvailable = await checkTurfAvailability(turfId, date, timeSlot);
-        res.json({ success: true, isAvailable });
-    } catch (error) {
-        res.json({ success: false, message: "Error checking availability: " + error.message });
-    }
-}
+// --- HELPER: Convert "04:00 PM" to Minutes (e.g., 960) ---
+const parseTimeToMinutes = (timeStr) => {
+    if (!timeStr) return 0;
+    const [time, modifier] = timeStr.trim().split(" ");
+    let [hours, minutes] = time.split(":").map(Number);
+    if (hours === 12 && modifier === "AM") hours = 0;
+    if (hours !== 12 && modifier === "PM") hours += 12;
+    return hours * 60 + minutes;
+};
 
-// --- API: Create Booking ---
+// --- API: Create Booking (With Overlap Check) ---
 export const createBooking = async (req, res) => {
     try {
-        // Default paymentMethod to 'UPI' if not provided
         const { turfId, date, timeSlot, paymentMethod = 'UPI' } = req.body;
-        const userId = req.user._id;
+        const userId = req.user.id; // Clerk ID
 
-        // 1. Check Availability
-        const isAvailable = await checkTurfAvailability(turfId, date, timeSlot);
-        if (!isAvailable) {
+        // 1. Parse Requested Time
+        const [reqStartStr, reqEndStr] = timeSlot.split(" - ");
+        const reqStart = parseTimeToMinutes(reqStartStr);
+        const reqEnd = parseTimeToMinutes(reqEndStr);
+
+        // 2. Fetch active bookings to check overlaps
+        const existingBookings = await Booking.find({
+            turf: turfId,
+            date: date,
+            status: { $ne: 'cancelled' }
+        });
+
+        // 3. Overlap Logic
+        let isConflict = false;
+        for (const booking of existingBookings) {
+            const [existStartStr, existEndStr] = booking.timeSlot.split(" - ");
+            const existStart = parseTimeToMinutes(existStartStr);
+            const existEnd = parseTimeToMinutes(existEndStr);
+
+            if (reqStart < existEnd && reqEnd > existStart) {
+                isConflict = true;
+                break;
+            }
+        }
+
+        if (isConflict) {
             return res.status(400).json({
                 success: false,
-                message: "Slot already booked. Please choose another time."
+                message: "⚠️ Slot already booked! Please choose another time."
             });
         }
 
-        // 2. Fetch Turf Details for Price
+        // 4. Calculate Price
         const turf = await Turf.findById(turfId);
-        if (!turf) {
-            return res.status(404).json({ success: false, message: "Turf not found" });
-        }
+        if (!turf) return res.status(404).json({ success: false, message: "Turf not found" });
 
-        // 3. Create Booking
+        const durationHours = (reqEnd - reqStart) / 60;
+        const totalAmount = turf.price * durationHours;
+
+        // 5. Save Booking
         const newBooking = new Booking({
             user: userId,
             turf: turfId,
             date: date,
             timeSlot: timeSlot,
-            amount: turf.price,
-            paymentMethod: paymentMethod, 
+            amount: totalAmount,
+            paymentMethod: paymentMethod,
             isPaid: false,
             status: 'booked'
         });
 
         await newBooking.save();
 
-        res.status(201).json({
-            success: true,
-            message: "Booking Confirmed!",
-            booking: newBooking
-        });
+        res.status(201).json({ success: true, message: "Booking Confirmed!", booking: newBooking });
 
     } catch (error) {
-        console.error(error);
+        console.error("Booking Error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 }
@@ -81,70 +89,73 @@ export const createBooking = async (req, res) => {
 // --- API: Get User Bookings ---
 export const getUserBookings = async (req, res) => {
     try {
-        const userId = req.user._id;
+        const userId = req.user.id;
         const bookings = await Booking.find({ user: userId })
             .populate('turf', 'name location images')
             .sort({ date: -1 });
-
         res.json({ success: true, bookings });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 }
 
-// --- API: Cancel Booking (With 30% Deduction Logic) ---
+// --- API: Cancel Booking (With Automatic Razorpay Refund) ---
 export const cancelBooking = async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.user._id;
+        const userId = req.user.id;
 
         const booking = await Booking.findById(id);
-
         if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
 
-        // Verify Owner
-        if (booking.user.toString() !== userId.toString()) {
-            return res.status(403).json({ success: false, message: "Unauthorized action" });
+        if (booking.user !== userId) {
+            return res.status(403).json({ success: false, message: "Unauthorized" });
         }
-
         if (booking.status === 'cancelled') {
-            return res.status(400).json({ success: false, message: "Booking is already cancelled" });
+            return res.status(400).json({ success: false, message: "Already cancelled" });
         }
 
-        // --- 1. Calculate Time Difference ---
-        // Construct the full Date object for the booking slot
-        const bookingDateTime = new Date(booking.date);
-        
-        // Extract start time (e.g., "04:00 PM")
-        const startTimeString = booking.timeSlot.split(" - ")[0]; 
-        const [time, modifier] = startTimeString.split(" ");
-        let [hours, mins] = time.split(":");
-
-        if (hours === "12") hours = "00";
-        if (modifier === "PM") hours = parseInt(hours, 10) + 12;
-        
-        bookingDateTime.setHours(parseInt(hours), parseInt(mins), 0, 0);
+        // 1. Calculate Refund Amount
+        const bookingDate = new Date(booking.date);
+        const startTimeStr = booking.timeSlot.split(" - ")[0];
+        const startMinutes = parseTimeToMinutes(startTimeStr);
+        bookingDate.setMinutes(bookingDate.getMinutes() + startMinutes);
 
         const currentTime = new Date();
-        const timeDifferenceMs = bookingDateTime - currentTime;
+        const timeDifferenceMs = bookingDate - currentTime;
         const hoursDifference = timeDifferenceMs / (1000 * 60 * 60);
 
         let refundAmount = 0;
         let message = "";
 
-        // --- 2. Apply Refund Logic ---
         if (hoursDifference < 24) {
-            // Less than 24 hours left: Owner keeps 30%, Refund 70%
-            refundAmount = booking.amount * 0.70;
-            message = `Booking cancelled (<24hrs left). 30% deduction applied. Refund: ₹${refundAmount.toFixed(2)}`;
+            refundAmount = booking.amount * 0.70; // 30% Deduction
+            message = `Cancelled (<24hrs). 30% deducted. Refund: ₹${refundAmount.toFixed(0)}`;
         } else {
-            // More than 24 hours left: Full Refund
-            refundAmount = booking.amount;
-            message = `Booking cancelled. Full refund of ₹${refundAmount} initiated.`;
+            refundAmount = booking.amount; // Full Refund
+            message = `Cancelled. Full refund: ₹${refundAmount}`;
         }
 
-        // --- 3. Update Database ---
+        // 2. AUTOMATIC RAZORPAY REFUND
+        if (booking.isPaid && booking.paymentId) {
+            try {
+                await razorpay.payments.refund(booking.paymentId, {
+                    amount: Math.round(refundAmount * 100), // paise
+                    speed: "normal",
+                    notes: { reason: "User Cancellation" }
+                });
+            } catch (err) {
+                console.error("Razorpay Refund Failed:", err);
+                return res.status(500).json({
+                    success: false,
+                    message: "Cancellation failed: Could not process automatic refund."
+                });
+            }
+        }
+
+        // 3. Update Database
         booking.status = 'cancelled';
+        booking.refundAmount = refundAmount;
         await booking.save();
 
         res.json({ success: true, message, refundAmount });
@@ -153,4 +164,9 @@ export const cancelBooking = async (req, res) => {
         console.error(error);
         res.status(500).json({ success: false, message: error.message });
     }
+};
+
+// Optional Availability Check
+export const checkAvailabilityAPI = async (req, res) => {
+    res.json({ success: true });
 };
