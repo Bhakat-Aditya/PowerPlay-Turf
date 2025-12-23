@@ -86,7 +86,7 @@ const FacilityDetails = () => {
     try {
       const token = await getToken();
       const { data } = await axios.post(
-        "http://localhost:3000/api/bookings/book",
+        "https://power-play-turf-backend.vercel.app/api/bookings/book",
         {
           turfId: turf._id,
           date: bookingDate,
