@@ -10,21 +10,20 @@ const parseTimeToMinutes = (timeStr) => {
     return hours * 60 + minutes;
 };
 
-// 1. Create Booking (Handles 'Cash' vs 'Online')
+// 1. Create Booking
 export const createBooking = async (req, res) => {
     try {
-        const { turfId, date, timeSlot, paymentMethod } = req.body; // Expecting 'Cash' or 'Online'
-        const userId = req.auth.userId;
+        const { turfId, date, timeSlot, paymentMethod } = req.body;
 
-        // --- 1. Overlap Check & Duration Calculation ---
+        // FIX: Use req.userId (set by our updated middleware)
+        const userId = req.userId;
+
+        // --- 1. Overlap Check ---
         const [reqStartStr, reqEndStr] = timeSlot.split(" - ");
         const reqStart = parseTimeToMinutes(reqStartStr);
         let reqEnd = parseTimeToMinutes(reqEndStr);
 
-        // Midnight crossing fix
-        if (reqEnd <= reqStart) {
-            reqEnd += 24 * 60;
-        }
+        if (reqEnd <= reqStart) reqEnd += 24 * 60;
 
         const existingBookings = await Booking.find({
             turf: turfId,
@@ -38,9 +37,7 @@ export const createBooking = async (req, res) => {
             const existStart = parseTimeToMinutes(existStartStr);
             let existEnd = parseTimeToMinutes(existEndStr);
 
-            if (existEnd <= existStart) {
-                existEnd += 24 * 60;
-            }
+            if (existEnd <= existStart) existEnd += 24 * 60;
 
             if (reqStart < existEnd && reqEnd > existStart) {
                 isConflict = true;
@@ -66,16 +63,13 @@ export const createBooking = async (req, res) => {
             date: date,
             timeSlot: timeSlot,
             amount: totalAmount,
-            paymentMethod: paymentMethod || 'Online', // Default to Online if missing
-            isPaid: false, // Always starts as false
+            paymentMethod: paymentMethod || 'Online',
+            isPaid: false,
             status: 'booked'
         });
 
         const savedBooking = await newBooking.save();
 
-        // --- 4. Branch Logic based on Payment Method ---
-
-        // CASE A: Pay at Venue (Cash)
         if (paymentMethod === 'Cash') {
             return res.status(201).json({
                 success: true,
@@ -84,31 +78,28 @@ export const createBooking = async (req, res) => {
             });
         }
 
-        // CASE B: Online Payment
-        // Here you would normally return a Stripe/Razorpay session ID
         return res.status(201).json({
             success: true,
             message: "Slot reserved. Proceeding to payment...",
-            booking: savedBooking,
-            // paymentSessionId: ... (Add your stripe logic here later)
+            booking: savedBooking
         });
 
     } catch (error) {
         console.error("Booking Error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
-}
+};
 
-// 2. NEW: Admin Mark as Paid (For your Father)
+// 2. Admin: Mark as Paid
 export const updatePaymentStatus = async (req, res) => {
     try {
-        const { id } = req.params; // Booking ID passed in URL
-        const { isPaid } = req.body; // Boolean: true or false
+        const { id } = req.params;
+        const { isPaid } = req.body;
 
         const updatedBooking = await Booking.findByIdAndUpdate(
             id,
-            { isPaid: isPaid }, // Update the paid status
-            { new: true } // Return the updated doc
+            { isPaid: isPaid },
+            { new: true }
         );
 
         if (!updatedBooking) {
@@ -126,10 +117,11 @@ export const updatePaymentStatus = async (req, res) => {
     }
 };
 
-// 3. Get User Bookings (Kept same)
+// 3. Get User Bookings
 export const getUserBookings = async (req, res) => {
     try {
-        const userId = req.auth.userId;
+        // FIX: Use req.userId
+        const userId = req.userId;
         const bookings = await Booking.find({ user: userId })
             .populate('turf')
             .sort({ date: -1 });
@@ -140,16 +132,17 @@ export const getUserBookings = async (req, res) => {
     }
 }
 
-// 4. Cancel Booking (Kept same)
+// 4. Cancel Booking
 export const cancelBooking = async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.auth.userId;
+        // FIX: Use req.userId
+        const userId = req.userId;
 
         const booking = await Booking.findById(id);
         if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
 
-        if (booking.user.toString() !== userId) { // Added toString() for safety
+        if (booking.user.toString() !== userId) {
             return res.status(403).json({ success: false, message: "Unauthorized" });
         }
         if (booking.status === 'cancelled') {
@@ -174,13 +167,13 @@ export const cancelBooking = async (req, res) => {
     }
 };
 
-// 5. Get ALL Bookings (Admin Dashboard)
+// 5. Get ALL Bookings (Admin)
 export const getAllBookings = async (req, res) => {
     try {
         const bookings = await Booking.find({})
             .populate('user', 'name email')
             .populate('turf', 'name')
-            .sort({ date: -1 });
+            .sort({ date: -1 }); // Newest first
 
         res.json({ success: true, bookings });
     } catch (error) {

@@ -17,6 +17,6 @@ router.put('/cancel/:id', protect, cancelBooking);
 router.get('/all', protect, getAllBookings);
 
 // NEW: Route to update payment status (admin only)+
-router.put('/update-payment/:id', updatePaymentStatus);
+router.put('/update-payment/:id', protect, updatePaymentStatus);
 
 export default router;

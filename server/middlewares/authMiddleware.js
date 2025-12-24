@@ -1,15 +1,22 @@
-// NO IMPORTS NEEDED.
-// We trust the Clerk Middleware in server.js to handle the token.
+import "dotenv/config";
 
 export const protect = (req, res, next) => {
-  // Check if Clerk middleware successfully attached the auth object
-  if (!req.auth || !req.auth.userId) {
-    return res.status(401).json({ 
-      success: false, 
-      message: "Unauthorized: No token provided" 
-    });
-  }
+  try {
+    // FIX: Handle req.auth whether it's a function (new Clerk) or object (old Clerk)
+    const authObj = typeof req.auth === "function" ? req.auth() : req.auth;
 
-  // Proceed. We will use req.auth.userId in the controllers.
-  next();
+    if (!authObj || !authObj.userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: No token provided",
+      });
+    }
+
+    // Attach userId to the request object for easy access in controllers
+    req.userId = authObj.userId;
+    next();
+  } catch (error) {
+    console.error("Auth Middleware Error:", error);
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
 };
