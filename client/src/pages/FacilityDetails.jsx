@@ -13,6 +13,7 @@ const FacilityDetails = () => {
   const { date, startTime, duration: initialDuration } = location.state || {};
   const { getToken } = useAuth();
   const { isSignedIn } = useUser();
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   const [turf, setTurf] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +31,7 @@ const FacilityDetails = () => {
   useEffect(() => {
     const fetchTurf = async () => {
       try {
-        const { data } = await axios.get(`/api/turfs/${id}`);
+        const { data } = await axios.get(`${backendUrl}/api/turfs/${id}`);
         if (data.success) setTurf(data.turf);
       } catch (error) {
         toast.error("Failed to load turf details");
@@ -39,7 +40,7 @@ const FacilityDetails = () => {
       }
     };
     fetchTurf();
-  }, [id]);
+  }, [id, backendUrl]);
 
   // --- 2. Logic & Handlers ---
   const openLightbox = (imgSrc) => {
@@ -77,23 +78,25 @@ const FacilityDetails = () => {
     return options;
   };
 
-  const handleBooking = async () => {
+  // --- UPDATED HANDLER: Accepts Payment Method ---
+  const handleBooking = async (paymentMethod) => {
     if (!isSignedIn) return toast.error("Please login to book");
     if (!bookingDate || !selectedSlot) return toast.error("Select date/time");
 
     try {
       const token = await getToken();
       const { data } = await axios.post(
-        "/api/bookings/book",
+        `${backendUrl}/api/bookings/book`,
         {
           turfId: turf._id,
           date: bookingDate,
           timeSlot: formatSlotForDB(selectedSlot, duration),
+          paymentMethod: paymentMethod, // <--- CRITICAL CHANGE: Sending 'Cash' or 'Online'
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (data.success) {
-        toast.success("Booking Confirmed!");
+        toast.success(data.message);
         navigate("/bookings");
       }
     } catch (err) {
@@ -122,7 +125,6 @@ const FacilityDetails = () => {
 
   return (
     <>
-      {/* Injecting Fonts Locally for this component */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
         .font-poppins { font-family: 'Poppins', sans-serif; }
@@ -168,7 +170,6 @@ const FacilityDetails = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20 relative z-30 flex flex-col lg:flex-row gap-8">
           {/* --- LEFT: INFO --- */}
           <div className="lg:w-2/3 space-y-8">
-            {/* Description Card */}
             <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
               <h2 className="text-2xl font-bold mb-4 text-gray-800 border-b pb-4">
                 About the Arena
@@ -179,7 +180,6 @@ const FacilityDetails = () => {
               </p>
             </div>
 
-            {/* Amenities Card */}
             <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
               <h2 className="text-2xl font-bold mb-6 text-gray-800">
                 Premium Amenities
@@ -267,27 +267,33 @@ const FacilityDetails = () => {
                   </div>
                 </div>
 
-                <button
-                  onClick={handleBooking}
-                  className="w-full bg-black text-white text-lg font-bold py-5 rounded-xl hover:bg-gray-800 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-gray-200 mt-4"
-                >
-                  Confirm Booking
-                </button>
+                {/* --- CHANGED: TWO BUTTONS FOR PAYMENT METHOD --- */}
+                <div className="flex flex-col gap-3 mt-6">
+                  <button
+                    onClick={() => handleBooking("Online")}
+                    className="w-full bg-blue-600 text-white text-lg font-bold py-3 rounded-xl hover:bg-blue-700 transition-all shadow-md"
+                  >
+                    💳 Pay Online
+                  </button>
+
+                  <button
+                    onClick={() => handleBooking("Cash")}
+                    className="w-full bg-green-600 text-white text-lg font-bold py-3 rounded-xl hover:bg-green-700 transition-all shadow-md"
+                  >
+                    📍 Pay at Venue
+                  </button>
+                </div>
+                <p className="text-center text-xs text-gray-400 mt-2">
+                  Reserve now, pay later with 'Pay at Venue'
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* --- BOTTOM: ACCORDION GALLERY --- */}
+        {/* --- BOTTOM: GALLERY --- */}
         {galleryImages.length > 0 && (
           <div className="max-w-7xl mx-auto px-4 mt-24 mb-10">
-            <h2 className="text-3xl font-bold text-center mb-2">Visual Tour</h2>
-            <p className="text-gray-500 text-center mb-10 max-w-lg mx-auto">
-              Explore the arena through our lens. Click any panel to expand and
-              view in high resolution.
-            </p>
-
-            {/* THE ACCORDION COMPONENT */}
             <div className="flex items-center gap-2 h-[500px] w-full mx-auto">
               {galleryImages.slice(0, 6).map((img, idx) => (
                 <div
@@ -301,12 +307,6 @@ const FacilityDetails = () => {
                     alt={`Gallery ${idx}`}
                     onError={(e) => (e.target.style.display = "none")}
                   />
-                  {/* Optional: Text that appears on hover */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end h-1/2">
-                    <span className="text-white font-bold text-lg translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                      View Fullscreen
-                    </span>
-                  </div>
                 </div>
               ))}
             </div>

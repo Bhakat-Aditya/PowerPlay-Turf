@@ -120,8 +120,9 @@ export const updatePaymentStatus = async (req, res) => {
 // 3. Get User Bookings
 export const getUserBookings = async (req, res) => {
     try {
-        // FIX: Use req.userId
+        // --- FIX IS HERE: Use req.userId ---
         const userId = req.userId;
+        
         const bookings = await Booking.find({ user: userId })
             .populate('turf')
             .sort({ date: -1 });

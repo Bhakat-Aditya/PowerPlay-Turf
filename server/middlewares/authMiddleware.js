@@ -2,13 +2,13 @@ import "dotenv/config";
 
 export const protect = (req, res, next) => {
   try {
-    // FIX: Handle req.auth whether it's a function (new Clerk) or object (old Clerk)
+    // FIX: Handle req.auth whether it's a function (New Clerk) or object (Old Clerk)
     const authObj = typeof req.auth === "function" ? req.auth() : req.auth;
 
     if (!authObj || !authObj.userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized: No token provided",
+      return res.status(401).json({ 
+        success: false, 
+        message: "Unauthorized: No token provided" 
       });
     }
 

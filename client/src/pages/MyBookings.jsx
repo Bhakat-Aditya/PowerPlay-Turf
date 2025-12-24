@@ -13,20 +13,28 @@ const MyBookings = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   // --- Fetch Bookings ---
-  const fetchBookings = async () => {
+  const fetchBookings = async (isRefresh = false) => {
     try {
+      if (isRefresh) {
+        // Optional: Show a loading toast when manually refreshing
+        var toastId = toast.loading("Refreshing bookings...");
+      }
+
       const token = await getToken();
       const { data } = await axios.get(`${backendUrl}/api/bookings/user`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (data.success) {
         setBookings(data.bookings);
+        if (isRefresh) toast.success("Updated!", { id: toastId });
       }
     } catch (error) {
       console.error(error);
       toast.error("Failed to load bookings");
     } finally {
       setLoading(false);
+      // Remove loading toast if it exists
+      if (isRefresh && toastId) toast.dismiss(toastId);
     }
   };
 
@@ -165,9 +173,16 @@ const MyBookings = () => {
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-10 px-4 font-sans">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-extrabold mb-8 text-gray-900">
-          My Bookings
-        </h1>
+        {/* --- HEADER WITH REFRESH BUTTON --- */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+          <h1 className="text-3xl font-extrabold text-gray-900">My Bookings</h1>
+          <button
+            onClick={() => fetchBookings(true)}
+            className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition shadow-sm flex items-center gap-2"
+          >
+            <span>🔄</span> Refresh List
+          </button>
+        </div>
 
         {bookings.length === 0 ? (
           <div className="text-center text-gray-500 mt-10 text-lg">
