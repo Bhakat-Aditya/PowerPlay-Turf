@@ -73,3 +73,8 @@ export const verifyPayment = async (req, res) => {
     res.status(500).json({ success: false, message: "Payment verification failed" });
   }
 };
+
+// --- 3. Get Razorpay Key (Frontend needs this) ---
+export const getKey = async (req, res) => {
+  res.status(200).json({ key: process.env.RAZORPAY_KEY_ID });
+};

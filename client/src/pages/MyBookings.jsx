@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { toast } from "react-hot-toast";
 
 const MyBookings = () => {
   const { getToken } = useAuth();
+  const { user } = useUser();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // --- Fetch Bookings ---
   const fetchBookings = async () => {
     try {
       const token = await getToken();
@@ -19,12 +21,106 @@ const MyBookings = () => {
       }
     } catch (error) {
       console.error(error);
-      // toast.error("Failed to fetch bookings");
     } finally {
       setLoading(false);
     }
   };
 
+  // --- Load Razorpay Script ---
+  const loadRazorpay = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  // --- Handle Pay Now ---
+  const handlePayment = async (booking) => {
+    const token = await getToken();
+
+    // 1. Load Script
+    const res = await loadRazorpay();
+    if (!res) {
+      toast.error("Razorpay SDK failed to load. Check your connection.");
+      return;
+    }
+
+    try {
+      // 2. Get Key ID
+      const {
+        data: { key },
+      } = await axios.get("/api/payment/get-key", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // 3. Create Order
+      const { data: orderData } = await axios.post(
+        "/api/payment/create-order",
+        { bookingId: booking._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!orderData.success) {
+        toast.error("Could not initiate payment.");
+        return;
+      }
+
+      // 4. Open Razorpay Popup
+      const options = {
+        key: key,
+        amount: orderData.order.amount,
+        currency: "INR",
+        name: "PowerPlay Turf",
+        description: `Booking for ${booking.turf.name}`,
+        order_id: orderData.order.id,
+
+        handler: async function (response) {
+          // 5. Verify Payment on Success
+          try {
+            const verifyRes = await axios.post(
+              "/api/payment/verify",
+              {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                bookingId: booking._id,
+              },
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            );
+
+            if (verifyRes.data.success) {
+              toast.success("Payment Successful!");
+              fetchBookings(); // Refresh UI to show 'Paid'
+            }
+          } catch (err) {
+            toast.error("Payment Verification Failed");
+            console.error(err);
+          }
+        },
+        prefill: {
+          name: user?.fullName || "User",
+          email: user?.primaryEmailAddress?.emailAddress || "",
+          contact: "",
+        },
+        theme: {
+          color: "#16a34a",
+        },
+      };
+
+      const rzp1 = new window.Razorpay(options);
+      rzp1.open();
+    } catch (error) {
+      console.error("Payment Error:", error);
+      toast.error("Something went wrong with payment.");
+    }
+  };
+
+  // --- Handle Cancel ---
   const handleCancel = async (bookingId) => {
     if (
       !window.confirm("Are you sure? If within 24 hours, 30% will be deducted.")
@@ -138,7 +234,7 @@ const MyBookings = () => {
                         </p>
                       </div>
 
-                      {/* Total Amount / Refund Logic FIXED HERE */}
+                      {/* Total Amount / Refund Logic */}
                       <div>
                         <p className="text-gray-400 font-medium">
                           Total Amount
@@ -159,16 +255,35 @@ const MyBookings = () => {
                         )}
                       </div>
 
+                      {/* Payment Status / Pay Button */}
                       <div>
                         <p className="text-gray-400 font-medium">Payment</p>
-                        <p className="font-semibold text-yellow-600">
-                          Pending (Pay at Venue)
-                        </p>
+                        {booking.isPaid ? (
+                          <p className="font-semibold text-green-600 flex items-center gap-1">
+                            ✅ Paid (Online)
+                          </p>
+                        ) : booking.status === "cancelled" ? (
+                          <p className="font-semibold text-gray-400">
+                            Cancelled
+                          </p>
+                        ) : (
+                          <div className="flex flex-col items-start gap-2">
+                            <span className="text-yellow-600 font-medium text-xs">
+                              Pending
+                            </span>
+                            <button
+                              onClick={() => handlePayment(booking)}
+                              className="bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
+                            >
+                              Pay Now
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Buttons */}
+                  {/* Cancel Button */}
                   {booking.status === "booked" && (
                     <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col sm:flex-row gap-3 items-center">
                       <div className="flex-grow"></div>

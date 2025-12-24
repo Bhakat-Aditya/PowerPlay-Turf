@@ -10,6 +10,7 @@ import clerkWebhooks from './controllers/clerkWebhooks.js';
 import userRouter from './routes/userRoutes.js';
 import bookingRouter from './routes/bookingRoutes.js';
 import turfRouter from './routes/turfRoutes.js';
+import paymentRouter from './routes/paymentRoutes.js';
 // REMOVED: import paymentRouter ... (To stop Razorpay crash)
 
 connectDB();
@@ -34,7 +35,7 @@ app.get('/', (req, res) => {
 app.use('/api/user', userRouter);
 app.use('/api/bookings', bookingRouter);
 app.use('/api/turfs', turfRouter);
-// REMOVED: app.use('/api/payment', paymentRouter); (To stop Razorpay crash)
+app.use('/api/payment', paymentRouter);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
