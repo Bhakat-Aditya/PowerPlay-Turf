@@ -9,11 +9,14 @@ const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // --- ACCESS ENV VARIABLE ---
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
   // --- Fetch Bookings ---
   const fetchBookings = async () => {
     try {
       const token = await getToken();
-      const { data } = await axios.get("/api/bookings/user", {
+      const { data } = await axios.get(`${backendUrl}/api/bookings/user`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (data.success) {
@@ -21,6 +24,7 @@ const MyBookings = () => {
       }
     } catch (error) {
       console.error(error);
+      toast.error("Failed to load bookings");
     } finally {
       setLoading(false);
     }
@@ -37,7 +41,7 @@ const MyBookings = () => {
     });
   };
 
-  // --- Handle Pay Now ---
+  // --- Handle Pay Now (For Online Bookings) ---
   const handlePayment = async (booking) => {
     const token = await getToken();
 
@@ -52,13 +56,13 @@ const MyBookings = () => {
       // 2. Get Key ID
       const {
         data: { key },
-      } = await axios.get("/api/payment/get-key", {
+      } = await axios.get(`${backendUrl}/api/payment/get-key`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       // 3. Create Order
       const { data: orderData } = await axios.post(
-        "/api/payment/create-order",
+        `${backendUrl}/api/payment/create-order`,
         { bookingId: booking._id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -81,7 +85,7 @@ const MyBookings = () => {
           // 5. Verify Payment on Success
           try {
             const verifyRes = await axios.post(
-              "/api/payment/verify",
+              `${backendUrl}/api/payment/verify`,
               {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
@@ -131,7 +135,7 @@ const MyBookings = () => {
     try {
       const token = await getToken();
       const { data } = await axios.put(
-        `/api/bookings/cancel/${bookingId}`,
+        `${backendUrl}/api/bookings/cancel/${bookingId}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -234,7 +238,7 @@ const MyBookings = () => {
                         </p>
                       </div>
 
-                      {/* Total Amount / Refund Logic */}
+                      {/* Total Amount */}
                       <div>
                         <p className="text-gray-400 font-medium">
                           Total Amount
@@ -258,25 +262,48 @@ const MyBookings = () => {
                       {/* Payment Status / Pay Button */}
                       <div>
                         <p className="text-gray-400 font-medium">Payment</p>
+
+                        {/* 1. IF PAID */}
                         {booking.isPaid ? (
                           <p className="font-semibold text-green-600 flex items-center gap-1">
-                            ✅ Paid (Online)
+                            ✅ Paid (
+                            {booking.paymentMethod === "Cash"
+                              ? "At Venue"
+                              : "Online"}
+                            )
                           </p>
                         ) : booking.status === "cancelled" ? (
+                          /* 2. IF CANCELLED */
                           <p className="font-semibold text-gray-400">
                             Cancelled
                           </p>
                         ) : (
+                          /* 3. IF PENDING */
                           <div className="flex flex-col items-start gap-2">
-                            <span className="text-yellow-600 font-medium text-xs">
-                              Pending
-                            </span>
-                            <button
-                              onClick={() => handlePayment(booking)}
-                              className="bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
-                            >
-                              Pay Now
-                            </button>
+                            {/* CASE A: Pay at Venue */}
+                            {booking.paymentMethod === "Cash" ? (
+                              <div className="flex items-center gap-2">
+                                <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-bold border border-orange-200">
+                                  Pay at Venue
+                                </span>
+                                <span className="text-gray-400 text-xs">
+                                  (Cash)
+                                </span>
+                              </div>
+                            ) : (
+                              /* CASE B: Online Payment (Pending) */
+                              <>
+                                <span className="text-yellow-600 font-medium text-xs">
+                                  Pending
+                                </span>
+                                <button
+                                  onClick={() => handlePayment(booking)}
+                                  className="bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
+                                >
+                                  Pay Now
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>

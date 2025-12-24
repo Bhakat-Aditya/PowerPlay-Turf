@@ -4,13 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { toast } from "react-hot-toast";
 
-// --- THE PERMANENT FIX ---
-// This automatically picks the right URL based on where the app is running
+// --- URL CONFIG ---
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 axios.defaults.baseURL = backendUrl;
-// -------------------------
+// ------------------
 
-const AppContext = createContext();
+// 1. FIX: Add 'export' here so AdminDashboard can import it
+export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
   const currency = "₹";
@@ -23,7 +23,7 @@ export const AppProvider = ({ children }) => {
   const fetchUser = async () => {
     try {
       const token = await getToken();
-      // Notice we now just use "/api/user" (No http://... needed!)
+      // Since baseURL is set above, this automatically goes to backendUrl/api/user
       const { data } = await axios.get("/api/user", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -50,12 +50,16 @@ export const AppProvider = ({ children }) => {
     isOwner,
     setIsOwner,
     axios,
-    backendUrl, // Exporting this in case you need it directly
+    backendUrl,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
+// 2. Custom Hook (Optional but good practice)
 export const useAppContext = () => {
   return useContext(AppContext);
 };
+
+// 3. FIX: Default export ensures main.jsx imports work smoothly
+export default AppProvider;

@@ -6,6 +6,7 @@ import Facilities from "./pages/Facilities"; // Assuming this exists based on ou
 import FacilityDetails from "./pages/FacilityDetails"; // Assuming this exists based on our chat
 import Footer from "./components/Footer";
 import {Toaster} from 'react-hot-toast';
+import AdminDashboard from './pages/AdminDashboard'; // Import it
 
 // 1. Import MyBookings
 import MyBookings from "./pages/MyBookings";
@@ -28,6 +29,7 @@ function App() {
 
           {/* 2. Add the Route */}
           <Route path="/bookings" element={<MyBookings />} />
+          <Route path='/admin-dashboard' element={<AdminDashboard />} />
         </Routes>
       </div>
 
