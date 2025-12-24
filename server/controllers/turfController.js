@@ -2,7 +2,7 @@ import Turf from '../models/Turf.js';
 
 export const getAllTurfs = async (req, res) => {
     try {
-        const turfs = await Turf.find({}); 
+        const turfs = await Turf.find({});
         res.json({ success: true, turfs });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -65,3 +65,24 @@ export const seedTurfs = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 }
+
+
+// ... existing code ...
+
+// Update Turf Details (Price, Name, etc.)
+export const updateTurf = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+
+        const updatedTurf = await Turf.findByIdAndUpdate(id, updates, { new: true });
+
+        if (!updatedTurf) {
+            return res.status(404).json({ success: false, message: "Turf not found" });
+        }
+
+        res.json({ success: true, message: "Turf updated successfully!", turf: updatedTurf });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

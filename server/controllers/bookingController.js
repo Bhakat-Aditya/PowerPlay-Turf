@@ -1,5 +1,6 @@
 import Booking from '../models/Booking.js'; // Go up one folder (..), then into models
 import Turf from '../models/Turf.js';
+import User from '../models/User.js';
 
 const parseTimeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
@@ -183,3 +184,95 @@ export const getAllBookings = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 }
+
+// Bulk Booking (Recurring)
+export const createBulkBooking = async (req, res) => {
+    try {
+        const { userEmail, turfId, timeSlot, startDate, endDate, selectedDays } = req.body;
+        // selectedDays: Array of numbers [0, 1, ... 6] where 0=Sunday, 1=Monday
+
+        // 1. Find the User
+        const user = await User.findOne({ email: userEmail });
+        if (!user) return res.status(404).json({ success: false, message: "User not found. Ask client to register first." });
+
+        // 2. Generate Dates
+        let start = new Date(startDate);
+        const end = new Date(endDate);
+        const datesToBook = [];
+
+        while (start <= end) {
+            if (selectedDays.includes(start.getDay())) {
+                datesToBook.push(new Date(start)); // Copy date
+            }
+            start.setDate(start.getDate() + 1);
+        }
+
+        if (datesToBook.length === 0) return res.status(400).json({ success: false, message: "No matching days in range." });
+
+        // 3. Check Conflicts & Calculate Price
+        const turf = await Turf.findById(turfId);
+        let conflictDate = null;
+
+        // Helper to parse time
+        const parseTime = (str) => {
+            const [time, mod] = str.split(' ');
+            let [h, m] = time.split(':').map(Number);
+            if (h === 12 && mod === 'AM') h = 0;
+            if (h !== 12 && mod === 'PM') h += 12;
+            return h * 60 + m;
+        }
+        const [reqStartStr, reqEndStr] = timeSlot.split(" - ");
+        const reqStart = parseTime(reqStartStr);
+        const reqEnd = parseTime(reqEndStr);
+
+        for (const dateObj of datesToBook) {
+            // Check conflicts for this specific date
+            const existing = await Booking.find({ 
+                turf: turfId, 
+                date: dateObj.toISOString().split('T')[0], // YYYY-MM-DD
+                status: { $ne: 'cancelled' } 
+            });
+
+            for (const b of existing) {
+                const [existStartStr, existEndStr] = b.timeSlot.split(" - ");
+                const existStart = parseTime(existStartStr);
+                const existEnd = parseTime(existEndStr);
+                
+                if (reqStart < existEnd && reqEnd > existStart) {
+                    conflictDate = dateObj.toISOString().split('T')[0];
+                    break;
+                }
+            }
+            if (conflictDate) break;
+        }
+
+        if (conflictDate) {
+            return res.status(400).json({ success: false, message: `Conflict found on ${conflictDate}. Bulk booking failed.` });
+        }
+
+        // 4. Create All Bookings
+        const duration = (reqEnd - reqStart) / 60;
+        const singlePrice = turf.price * duration;
+        
+        const bookingPromises = datesToBook.map(dateObj => {
+            return new Booking({
+                user: user._id,
+                turf: turfId,
+                date: dateObj.toISOString().split('T')[0],
+                timeSlot,
+                amount: singlePrice,
+                paymentMethod: 'Cash', // Usually bulk is paid offline/cash
+                isPaid: false, 
+                status: 'booked'
+            }).save();
+        });
+
+        await Promise.all(bookingPromises);
+
+        res.json({ success: true, message: `Successfully created ${bookingPromises.length} bookings!` });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

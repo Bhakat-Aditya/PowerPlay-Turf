@@ -1,5 +1,5 @@
 import express from 'express';
-import { createBooking, getUserBookings, cancelBooking, getAllBookings, updatePaymentStatus } from '../controllers/bookingController.js';
+import { createBooking, getUserBookings, cancelBooking, getAllBookings, updatePaymentStatus, createBulkBooking } from '../controllers/bookingController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
@@ -18,5 +18,8 @@ router.get('/all', protect, getAllBookings);
 
 // NEW: Route to update payment status (admin only)+
 router.put('/update-payment/:id', protect, updatePaymentStatus);
+
+// NEW: Route to create bulk bookings (admin only)
+router.post('/bulk-create', protect, createBulkBooking);
 
 export default router;
