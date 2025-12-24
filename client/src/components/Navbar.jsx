@@ -98,7 +98,7 @@ const Navbar = () => {
             className={`border px-4 py-1 text-sm font-light rounded-full cursor-pointer ${
               isScrolled ? "text-black" : "text-white"
             } transition-all`}
-            onClick={() => (isOwner ? navigate("/owner") : null)}
+            onClick={() => (isOwner ? navigate("/admin-dashboard") : null)}
           >
             {isOwner ? "Dashboard" : ""}
           </button>
@@ -201,7 +201,7 @@ const Navbar = () => {
 
         {user && (
           <button
-            onClick={() => (isOwner ? navigate("/owner") : null)}
+            onClick={() => (isOwner ? navigate("/admin-dashboard") : null)}
             className="border px-4 py-1 text-sm font-light rounded-full cursor-pointer transition-all"
           >
             {isOwner ? "Dashboard" : ""}
