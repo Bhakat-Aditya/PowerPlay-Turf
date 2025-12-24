@@ -174,8 +174,8 @@ export const cancelBooking = async (req, res) => {
 export const getAllBookings = async (req, res) => {
     try {
         const bookings = await Booking.find({})
-            .populate('user', 'name email image') // <-- Fetch Image & Name
-            .populate('turf', 'name sportType location') // <-- Fetch Sport Type
+            .populate('user', 'name email image') // <--- MUST BE HERE
+            .populate('turf', 'name sportType location')
             .sort({ date: -1 });
 
         res.json({ success: true, bookings });
