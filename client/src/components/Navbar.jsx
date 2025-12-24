@@ -28,8 +28,8 @@ const Navbar = () => {
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Facilities", path: "/facilities" },
-    { name: "Reviews", path: "/" },
-    { name: "About", path: "/" },
+    { name: "Reviews", path: "/reviews" },
+    { name: "About", path: "/about" }, // <--- Updated Path
   ];
 
   const ref = React.useRef(null);
@@ -48,7 +48,6 @@ const Navbar = () => {
     } else {
       setIsScrolled(false);
     }
-    setIsScrolled((prev) => (location.pathname !== "/" ? true : prev));
 
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -77,9 +76,9 @@ const Navbar = () => {
       {/* Desktop Nav */}
       <div className="hidden md:flex items-center gap-4 lg:gap-8">
         {navLinks.map((link, i) => (
-          <Link // <-- Change 'a' to 'Link'
+          <Link
             key={i}
-            to={link.path} // <-- Change 'href' to 'to'
+            to={link.path}
             className={`group flex flex-col gap-0.5 ${
               isScrolled ? "text-gray-700" : "text-white"
             }`}
@@ -194,9 +193,10 @@ const Navbar = () => {
         </button>
 
         {navLinks.map((link, i) => (
-          <a key={i} href={link.path} onClick={() => setIsMenuOpen(false)}>
+          // Fixed: Changed <a> to <Link> for correct routing
+          <Link key={i} to={link.path} onClick={() => setIsMenuOpen(false)}>
             {link.name}
-          </a>
+          </Link>
         ))}
 
         {user && (

@@ -99,7 +99,7 @@ const Facilities = () => {
                     <img src={sport.images?.[0]} alt={sport.name} className={`w-full h-full object-cover transition-transform duration-500 ${openingSoon ? "grayscale" : "hover:scale-105"}`}/>
                     {openingSoon && (
                       <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                        <span className="bg-yellow-500 text-black px-6 py-2 font-bold rounded-full tracking-wider shadow-lg transform -rotate-3 border-2 border-white">COMING SOON</span>
+                        <span className="bg-yellow-500 text-black px-6 py-2 font-bold rounded-full tracking-wider shadow-lg transform -rotate-3 border-2 border-white">OPENING SOON...</span>
                       </div>
                     )}
                   </div>
