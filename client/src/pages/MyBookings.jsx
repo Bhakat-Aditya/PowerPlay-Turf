@@ -138,7 +138,7 @@ const MyBookings = () => {
                         </p>
                       </div>
 
-                      {/* Total Amount / Refund Logic */}
+                      {/* Total Amount / Refund Logic FIXED HERE */}
                       <div>
                         <p className="text-gray-400 font-medium">
                           Total Amount
@@ -146,15 +146,15 @@ const MyBookings = () => {
                         {booking.status === "cancelled" ? (
                           <div>
                             <span className="line-through text-gray-400 text-xs mr-2">
-                              ₹{booking.amount}
+                              ₹{Math.abs(booking.amount)}
                             </span>
                             <span className="block text-red-600 font-bold text-lg">
-                              Refund: ₹{booking.refundAmount}
+                              Refund: ₹{Math.abs(booking.refundAmount)}
                             </span>
                           </div>
                         ) : (
                           <p className="font-bold text-lg text-gray-900">
-                            ₹{booking.amount}
+                            ₹{Math.abs(booking.amount)}
                           </p>
                         )}
                       </div>
