@@ -20,7 +20,7 @@ app.use(cors());
 app.use(clerkMiddleware());
 
 // 1. Webhook Route
-app.post("/api/clerk", bodyParser.json(), clerkWebhooks);
+app.post("/api/clerk", express.raw({ type: 'application/json' }), clerkWebhooks);
 
 // 2. Standard Middleware
 app.use(express.json()); 

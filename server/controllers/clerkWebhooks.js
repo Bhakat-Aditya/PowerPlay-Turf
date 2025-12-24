@@ -8,31 +8,32 @@ const clerkWebhooks = async (req, res) => {
             "svix-id": req.headers['svix-id'],
             "svix-timestamp": req.headers['svix-timestamp'],
             "svix-signature": req.headers['svix-signature']
-        }
+        };
 
-        // Note: For this to work reliably, req.body must match the raw payload. 
-        // See server.js fix below.
-        await whook.verify(JSON.stringify(req.body), headers);
+        // 1. Get the Raw Payload (needed for verification)
+        const payload = req.body.toString();
 
-        const { type, data } = req.body;
+        // 2. Verify the Signature
+        await whook.verify(payload, headers);
+
+        // 3. Parse the JSON manually
+        const { type, data } = JSON.parse(payload);
 
         switch (type) {
             case "user.created":
             case "user.updated": {
-                // Only extract these fields for create/update
                 const userData = {
                     _id: data.id,
                     email: data.email_addresses[0].email_address,
+                    // FIX: Save as 'name' to match your Admin Dashboard
                     name: data.first_name + " " + data.last_name,
                     image: data.image_url
                 };
-                
-                // upsert: true ensures we create if it doesn't exist, update if it does
+
                 await User.findByIdAndUpdate(data.id, userData, { upsert: true });
                 break;
             }
             case "user.deleted": {
-                // For delete, we only have data.id
                 await User.findByIdAndDelete(data.id);
                 break;
             }
@@ -45,6 +46,6 @@ const clerkWebhooks = async (req, res) => {
         console.log("Webhook Error:", error.message);
         res.status(400).json({ success: false, message: error.message });
     }
-}
+};
 
 export default clerkWebhooks;
