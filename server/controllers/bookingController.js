@@ -123,7 +123,7 @@ export const getUserBookings = async (req, res) => {
     try {
         // --- FIX IS HERE: Use req.userId ---
         const userId = req.userId;
-        
+
         const bookings = await Booking.find({ user: userId })
             .populate('turf')
             .sort({ date: -1 });
@@ -227,17 +227,17 @@ export const createBulkBooking = async (req, res) => {
 
         for (const dateObj of datesToBook) {
             // Check conflicts for this specific date
-            const existing = await Booking.find({ 
-                turf: turfId, 
+            const existing = await Booking.find({
+                turf: turfId,
                 date: dateObj.toISOString().split('T')[0], // YYYY-MM-DD
-                status: { $ne: 'cancelled' } 
+                status: { $ne: 'cancelled' }
             });
 
             for (const b of existing) {
                 const [existStartStr, existEndStr] = b.timeSlot.split(" - ");
                 const existStart = parseTime(existStartStr);
                 const existEnd = parseTime(existEndStr);
-                
+
                 if (reqStart < existEnd && reqEnd > existStart) {
                     conflictDate = dateObj.toISOString().split('T')[0];
                     break;
@@ -253,7 +253,7 @@ export const createBulkBooking = async (req, res) => {
         // 4. Create All Bookings
         const duration = (reqEnd - reqStart) / 60;
         const singlePrice = turf.price * duration;
-        
+
         const bookingPromises = datesToBook.map(dateObj => {
             return new Booking({
                 user: user._id,
@@ -262,7 +262,7 @@ export const createBulkBooking = async (req, res) => {
                 timeSlot,
                 amount: singlePrice,
                 paymentMethod: 'Cash', // Usually bulk is paid offline/cash
-                isPaid: false, 
+                isPaid: false,
                 status: 'booked'
             }).save();
         });
@@ -273,6 +273,87 @@ export const createBulkBooking = async (req, res) => {
 
     } catch (error) {
         console.error(error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const cancelBookingAdmin = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId; // ID of the Admin making the request
+
+        // 1. Verify Admin Role
+        const adminUser = await User.findById(userId);
+        if (adminUser.role !== 'owner') {
+            return res.status(403).json({ success: false, message: "Access Denied. Admins only." });
+        }
+
+        const booking = await Booking.findById(id);
+        if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+
+        if (booking.status === 'cancelled') {
+            return res.status(400).json({ success: false, message: "Booking is already cancelled" });
+        }
+
+        // 2. Admin Cancel = 100% Refund
+        booking.status = 'cancelled';
+        booking.refundAmount = booking.amount; // Full Refund
+
+        await booking.save();
+
+        res.json({
+            success: true,
+            message: "Booking cancelled by Admin. Full refund generated.",
+            booking
+        });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ... existing imports
+
+// 6. Bulk Cancel (Admin)
+export const cancelBulkBookingsAdmin = async (req, res) => {
+    try {
+        const { bookingIds } = req.body; // Array of IDs
+        const userId = req.userId;
+
+        // 1. Verify Admin
+        const adminUser = await User.findById(userId);
+        if (adminUser.role !== 'owner') {
+            return res.status(403).json({ success: false, message: "Access Denied. Admins only." });
+        }
+
+        if (!bookingIds || bookingIds.length === 0) {
+            return res.status(400).json({ success: false, message: "No bookings selected." });
+        }
+
+        // 2. Cancel all selected bookings that are NOT already cancelled
+        // We use an aggregation pipeline inside updateMany to set refundAmount = amount
+        const result = await Booking.updateMany(
+            { 
+                _id: { $in: bookingIds },
+                status: { $ne: 'cancelled' } // Only target active bookings
+            },
+            [
+                { 
+                    $set: { 
+                        status: 'cancelled', 
+                        refundAmount: "$amount" // Copy value from 'amount' to 'refundAmount'
+                    } 
+                }
+            ]
+        );
+
+        res.json({ 
+            success: true, 
+            message: `Successfully cancelled ${result.modifiedCount} bookings. Full refunds generated.` 
+        });
+
+    } catch (error) {
+        console.error("Bulk Cancel Error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
