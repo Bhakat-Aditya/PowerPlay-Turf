@@ -12,12 +12,56 @@ const MyBookings = () => {
   // --- ACCESS ENV VARIABLE ---
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
+  // --- Helper: Calculate Time Left ---
+  const getTimeRemaining = (bookingDate, timeSlot) => {
+    try {
+      // 1. Create a Date object for the booking
+      const targetDate = new Date(bookingDate);
+
+      // 2. Parse the start time from "HH:MM AM - HH:MM PM"
+      // Example timeSlot: "06:00 PM - 07:00 PM"
+      const startTimeString = timeSlot.split(" - ")[0]; // "06:00 PM"
+      const [time, modifier] = startTimeString.split(" "); // ["06:00", "PM"]
+      let [hours, minutes] = time.split(":");
+
+      // Convert to 24h format
+      if (hours === "12") hours = "00";
+      if (modifier === "PM") hours = parseInt(hours, 10) + 12;
+
+      targetDate.setHours(hours, parseInt(minutes, 10), 0, 0);
+
+      // 3. Calculate Difference
+      const now = new Date();
+      const diffMs = targetDate - now;
+
+      // If passed
+      if (diffMs <= 0) return "Started / Past";
+
+      // 4. Format Output
+      const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const hrs = Math.floor(
+        (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      );
+      const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+      if (days > 0) {
+        return `${days}d ${hrs}h left`;
+      }
+      if (hrs > 0) {
+        return `${hrs}h ${mins}m left`;
+      }
+      return `${mins}m left`;
+    } catch (error) {
+      return "";
+    }
+  };
+
   // --- Fetch Bookings ---
   const fetchBookings = async (isRefresh = false) => {
     try {
+      let toastId;
       if (isRefresh) {
-        // Optional: Show a loading toast when manually refreshing
-        var toastId = toast.loading("Refreshing bookings...");
+        toastId = toast.loading("Refreshing bookings...");
       }
 
       const token = await getToken();
@@ -33,8 +77,6 @@ const MyBookings = () => {
       toast.error("Failed to load bookings");
     } finally {
       setLoading(false);
-      // Remove loading toast if it exists
-      if (isRefresh && toastId) toast.dismiss(toastId);
     }
   };
 
@@ -49,11 +91,10 @@ const MyBookings = () => {
     });
   };
 
-  // --- Handle Pay Now (For Online Bookings) ---
+  // --- Handle Pay Now ---
   const handlePayment = async (booking) => {
     const token = await getToken();
 
-    // 1. Load Script
     const res = await loadRazorpay();
     if (!res) {
       toast.error("Razorpay SDK failed to load. Check your connection.");
@@ -61,14 +102,12 @@ const MyBookings = () => {
     }
 
     try {
-      // 2. Get Key ID
       const {
         data: { key },
       } = await axios.get(`${backendUrl}/api/payment/get-key`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // 3. Create Order
       const { data: orderData } = await axios.post(
         `${backendUrl}/api/payment/create-order`,
         { bookingId: booking._id },
@@ -80,7 +119,6 @@ const MyBookings = () => {
         return;
       }
 
-      // 4. Open Razorpay Popup
       const options = {
         key: key,
         amount: orderData.order.amount,
@@ -90,7 +128,6 @@ const MyBookings = () => {
         order_id: orderData.order.id,
 
         handler: async function (response) {
-          // 5. Verify Payment on Success
           try {
             const verifyRes = await axios.post(
               `${backendUrl}/api/payment/verify`,
@@ -107,7 +144,7 @@ const MyBookings = () => {
 
             if (verifyRes.data.success) {
               toast.success("Payment Successful!");
-              fetchBookings(); // Refresh UI to show 'Paid'
+              fetchBookings();
             }
           } catch (err) {
             toast.error("Payment Verification Failed");
@@ -165,7 +202,7 @@ const MyBookings = () => {
 
   if (loading)
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center font-bold text-gray-500">
         Loading...
       </div>
     );
@@ -173,7 +210,7 @@ const MyBookings = () => {
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-10 px-4 font-sans">
       <div className="max-w-4xl mx-auto">
-        {/* --- HEADER WITH REFRESH BUTTON --- */}
+        {/* --- HEADER --- */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
           <h1 className="text-3xl font-extrabold text-gray-900">My Bookings</h1>
           <button
@@ -189,157 +226,212 @@ const MyBookings = () => {
             You haven't booked any turfs yet.
           </div>
         ) : (
-          <div className="space-y-6">
-            {bookings.map((booking) => (
-              <div
-                key={booking._id}
-                className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row"
-              >
-                {/* Image Section */}
-                <div className="md:w-1/3 h-48 md:h-auto bg-gray-200 relative">
-                  <img
-                    src={
-                      booking.turf?.images?.[0] ||
-                      booking.turf?.image ||
-                      "https://placehold.co/400?text=No+Image"
-                    }
-                    alt="Turf"
-                    className="w-full h-full object-cover"
-                    onError={(e) =>
-                      (e.target.src = "https://placehold.co/400?text=Error")
-                    }
-                  />
-                  <div className="absolute top-2 left-2">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-sm ${
-                        booking.status === "booked"
-                          ? "bg-green-500 text-white"
-                          : booking.status === "cancelled"
-                          ? "bg-red-500 text-white"
-                          : "bg-gray-500 text-white"
+          <div className="space-y-8">
+            {bookings.map((booking) => {
+              const timeLeft = getTimeRemaining(booking.date, booking.timeSlot);
+              const isCancelled = booking.status === "cancelled";
+
+              return (
+                <div
+                  key={booking._id}
+                  className={`bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 flex flex-col md:flex-row transition-all duration-300 ${
+                    isCancelled ? "opacity-80" : "hover:shadow-xl"
+                  }`}
+                >
+                  {/* --- IMAGE SECTION --- */}
+                  <div className="md:w-2/5 h-56 md:h-auto bg-gray-200 relative overflow-hidden group">
+                    <img
+                      src={
+                        booking.turf?.images?.[0] ||
+                        booking.turf?.image ||
+                        "https://placehold.co/400?text=No+Image"
+                      }
+                      alt="Turf"
+                      className={`w-full h-full object-cover transition-all duration-500 ${
+                        isCancelled ? "grayscale" : "group-hover:scale-105"
                       }`}
-                    >
-                      {booking.status}
-                    </span>
+                      onError={(e) =>
+                        (e.target.src = "https://placehold.co/400?text=Error")
+                      }
+                    />
+
+                    {/* CANCELLED WATERMARK */}
+                    {isCancelled && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/10 z-10 pointer-events-none">
+                        <h2 className="text-4xl md:text-5xl font-black text-red-600 tracking-widest -rotate-45 opacity-80 border-4 border-red-600 px-4 py-2 select-none uppercase shadow-lg bg-white/20 backdrop-blur-sm">
+                          Cancelled
+                        </h2>
+                      </div>
+                    )}
+
+                    {/* STATUS BADGE (Top Left) */}
+                    <div className="absolute top-4 left-4 z-20">
+                      {isCancelled ? // Hidden here because we show big watermark
+                      null : (
+                        <div className="flex flex-col items-start shadow-lg">
+                          <div className="bg-primary text-black px-4 py-1 text-xs font-bold uppercase tracking-wider rounded-t-lg">
+                            UPCOMING
+                          </div>
+                          <div className="bg-black text-white px-4 py-1.5 text-lg font-bold rounded-b-lg flex items-center gap-2">
+                            ⏱ {timeLeft}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Details Section */}
-                <div className="p-6 md:w-2/3 flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-800">
-                      {booking.turf?.name || "Unknown Turf"}
-                    </h3>
-                    <p className="text-gray-500 text-sm mb-4">
-                      📍 {booking.turf?.location || "Location unavailable"}
-                    </p>
+                  {/* --- DETAILS SECTION --- */}
+                  <div className="p-6 md:w-3/5 flex flex-col justify-between relative">
+                    {/* Background Pattern for aesthetics */}
+                    <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
+                      <svg
+                        className="w-24 h-24"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                      </svg>
+                    </div>
 
-                    <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
-                      <div>
-                        <p className="text-gray-400 font-medium">Date</p>
-                        <p className="font-semibold text-gray-700">
-                          {new Date(booking.date).toLocaleDateString("en-US", {
-                            weekday: "short",
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </p>
+                    <div>
+                      <h3 className="text-3xl font-black text-gray-800 tracking-tight leading-none mb-2">
+                        {booking.turf?.name || "Unknown Turf"}
+                      </h3>
+                      <p className="text-gray-500 font-medium mb-6 flex items-center gap-1">
+                        <svg
+                          className="w-4 h-4 text-primary"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                        </svg>
+                        {booking.turf?.location || "Location unavailable"}
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-y-4 gap-x-6">
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                          <p className="text-xs text-gray-400 font-bold uppercase mb-1">
+                            Date
+                          </p>
+                          <p className="font-bold text-gray-800">
+                            {new Date(booking.date).toLocaleDateString(
+                              "en-US",
+                              {
+                                weekday: "short",
+                                day: "2-digit",
+                                month: "short",
+                              }
+                            )}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                          <p className="text-xs text-gray-400 font-bold uppercase mb-1">
+                            Time
+                          </p>
+                          <p className="font-bold text-gray-800">
+                            {booking.timeSlot}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-gray-400 font-medium">Time</p>
-                        <p className="font-semibold text-gray-700">
-                          {booking.timeSlot}
-                        </p>
-                      </div>
+                    </div>
 
-                      {/* Total Amount */}
+                    {/* Footer Actions */}
+                    <div className="mt-8 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-gray-100 pt-6">
+                      {/* Amount */}
                       <div>
-                        <p className="text-gray-400 font-medium">
-                          Total Amount
-                        </p>
-                        {booking.status === "cancelled" ? (
-                          <div>
-                            <span className="line-through text-gray-400 text-xs mr-2">
-                              ₹{Math.abs(booking.amount)}
+                        {isCancelled ? (
+                          <div className="flex flex-col">
+                            <span className="text-sm text-gray-400 line-through">
+                              Total: ₹{Math.abs(booking.amount)}
                             </span>
-                            <span className="block text-red-600 font-bold text-lg">
-                              Refund: ₹{Math.abs(booking.refundAmount)}
+                            <span className="text-red-600 font-bold">
+                              Refunded: ₹{Math.abs(booking.refundAmount)}
                             </span>
                           </div>
                         ) : (
-                          <p className="font-bold text-lg text-gray-900">
-                            ₹{Math.abs(booking.amount)}
-                          </p>
+                          <div className="flex flex-col">
+                            <span className="text-xs text-gray-400 font-bold uppercase">
+                              Total Amount
+                            </span>
+                            <span className="text-2xl font-black text-gray-900">
+                              ₹{Math.abs(booking.amount)}
+                            </span>
+                          </div>
                         )}
                       </div>
 
-                      {/* Payment Status / Pay Button */}
-                      <div>
-                        <p className="text-gray-400 font-medium">Payment</p>
-
-                        {/* 1. IF PAID */}
-                        {booking.isPaid ? (
-                          <p className="font-semibold text-green-600 flex items-center gap-1">
-                            ✅ Paid (
+                      {/* Payment/Actions */}
+                      <div className="w-full sm:w-auto flex flex-col items-end gap-2">
+                        {isCancelled ? (
+                          <span className="px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm font-bold border border-gray-200 cursor-not-allowed">
+                            Booking Inactive
+                          </span>
+                        ) : booking.isPaid ? (
+                          <div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200 font-bold text-sm">
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            PAID (
                             {booking.paymentMethod === "Cash"
-                              ? "At Venue"
+                              ? "Venue"
                               : "Online"}
                             )
-                          </p>
-                        ) : booking.status === "cancelled" ? (
-                          /* 2. IF CANCELLED */
-                          <p className="font-semibold text-gray-400">
-                            Cancelled
-                          </p>
+                          </div>
                         ) : (
-                          /* 3. IF PENDING */
-                          <div className="flex flex-col items-start gap-2">
-                            {/* CASE A: Pay at Venue */}
-                            {booking.paymentMethod === "Cash" ? (
-                              <div className="flex items-center gap-2">
-                                <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-bold border border-orange-200">
-                                  Pay at Venue
-                                </span>
-                                <span className="text-gray-400 text-xs">
-                                  (Cash)
-                                </span>
-                              </div>
-                            ) : (
-                              /* CASE B: Online Payment (Pending) */
-                              <>
-                                <span className="text-yellow-600 font-medium text-xs">
-                                  Pending
-                                </span>
-                                <button
-                                  onClick={() => handlePayment(booking)}
-                                  className="bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
-                                >
-                                  Pay Now
-                                </button>
-                              </>
+                          <div className="flex gap-2 w-full sm:w-auto">
+                            {booking.paymentMethod !== "Cash" && (
+                              <button
+                                onClick={() => handlePayment(booking)}
+                                className="bg-black text-white px-6 py-3 rounded-lg text-sm font-bold hover:bg-gray-800 transition shadow-lg w-full sm:w-auto"
+                              >
+                                Pay Now
+                              </button>
+                            )}
+                            {booking.paymentMethod === "Cash" && (
+                              <span className="px-4 py-2 bg-orange-50 text-orange-700 rounded-lg text-sm font-bold border border-orange-200 flex items-center gap-1">
+                                Pay at Venue
+                              </span>
                             )}
                           </div>
                         )}
+
+                        {/* Cancel Button */}
+                        {!isCancelled && (
+                          <button
+                            onClick={() => handleCancel(booking._id)}
+                            className="text-red-500 hover:text-red-700 text-xs font-bold underline decoration-red-200 underline-offset-4 hover:decoration-red-500 transition-all"
+                          >
+                            Cancel Booking
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
-
-                  {/* Cancel Button */}
-                  {booking.status === "booked" && (
-                    <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col sm:flex-row gap-3 items-center">
-                      <div className="flex-grow"></div>
-                      <button
-                        onClick={() => handleCancel(booking._id)}
-                        className="w-full sm:w-auto text-red-500 border border-red-200 px-4 py-2 rounded-lg font-semibold hover:bg-red-50 transition-all text-sm"
-                      >
-                        Cancel Booking
-                      </button>
-                    </div>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
