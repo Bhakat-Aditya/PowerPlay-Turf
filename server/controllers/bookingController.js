@@ -1,4 +1,4 @@
-import Booking from '../models/Booking.js';
+import Booking from '../models/Booking.js'; // Go up one folder (..), then into models
 import Turf from '../models/Turf.js';
 
 const parseTimeToMinutes = (timeStr) => {
@@ -168,13 +168,15 @@ export const cancelBooking = async (req, res) => {
     }
 };
 
+// ... existing imports
+
 // 5. Get ALL Bookings (Admin)
 export const getAllBookings = async (req, res) => {
     try {
         const bookings = await Booking.find({})
-            .populate('user', 'name email')
-            .populate('turf', 'name')
-            .sort({ date: -1 }); // Newest first
+            .populate('user', 'name email image') // <-- Fetch Image & Name
+            .populate('turf', 'name sportType location') // <-- Fetch Sport Type
+            .sort({ date: -1 });
 
         res.json({ success: true, bookings });
     } catch (error) {
