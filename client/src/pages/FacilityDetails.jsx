@@ -30,9 +30,7 @@ const FacilityDetails = () => {
   useEffect(() => {
     const fetchTurf = async () => {
       try {
-        const { data } = await axios.get(
-          `https://power-play-turf-backend.vercel.app/api/turfs/${id}`
-        );
+        const { data } = await axios.get(`/api/turfs/${id}`);
         if (data.success) setTurf(data.turf);
       } catch (error) {
         toast.error("Failed to load turf details");
@@ -86,7 +84,7 @@ const FacilityDetails = () => {
     try {
       const token = await getToken();
       const { data } = await axios.post(
-        "https://power-play-turf-backend.vercel.app/api/bookings/book",
+        "/api/bookings/book",
         {
           turfId: turf._id,
           date: bookingDate,

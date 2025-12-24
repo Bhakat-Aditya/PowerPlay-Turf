@@ -4,8 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { toast } from "react-hot-toast";
 
-// FIX: Hardcoded Production URL to prevent localhost issues
-axios.defaults.baseURL = "https://power-play-turf-backend.vercel.app";
+// --- THE PERMANENT FIX ---
+// This automatically picks the right URL based on where the app is running
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
+axios.defaults.baseURL = backendUrl;
+// -------------------------
 
 const AppContext = createContext();
 
@@ -20,6 +23,7 @@ export const AppProvider = ({ children }) => {
   const fetchUser = async () => {
     try {
       const token = await getToken();
+      // Notice we now just use "/api/user" (No http://... needed!)
       const { data } = await axios.get("/api/user", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -29,8 +33,6 @@ export const AppProvider = ({ children }) => {
       }
     } catch (error) {
       console.error(error);
-      // Optional: Suppress toast on load
-      // toast.error("Error fetching user data");
     }
   };
 
@@ -48,6 +50,7 @@ export const AppProvider = ({ children }) => {
     isOwner,
     setIsOwner,
     axios,
+    backendUrl, // Exporting this in case you need it directly
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
