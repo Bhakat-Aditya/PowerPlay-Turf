@@ -16,6 +16,7 @@ export const createOrder = async (req, res) => {
     const booking = await Booking.findById(bookingId);
 
     if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+    console.log("DEBUG: Booking Details:", { id: booking._id, amount: booking.amount });
 
     // Razorpay expects amount in PAISE (₹1 = 100 paise)
     const options = {
