@@ -20,3 +20,19 @@ export const getUserData = async (req, res) => {
         res.status(500).json({ success: false, message: "Error fetching user data: " + error.message });
     }
 }
+export const updateUserPhone = async (req, res) => {
+    try {
+        const userId = req.userId; // Coming from authMiddleware
+        const { phone } = req.body;
+
+        const user = await User.findByIdAndUpdate(
+            userId, 
+            { phone: phone }, 
+            { new: true } // Returns the updated user
+        );
+
+        res.json({ success: true, message: "Phone number saved!", user });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

@@ -42,7 +42,7 @@ const Reviews = () => {
               <p className="text-primary font-bold tracking-[0.3em] uppercase mb-4 text-sm animate-pulse">
                 Community & Culture
               </p>
-              <h1 className="text-7xl md:text-9xl font-black tracking-tighter leading-[0.9]">
+              <h1 className="text-7xl md:text-9xl font-black tracking-tighter leading-[0.9] overflow-hidden">
                 WORD ON <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-500 to-white">
                   THE STREET.
@@ -70,7 +70,7 @@ const Reviews = () => {
                   V
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg leading-tight">Vikram R.</h3>
+                  <h3 className="font-bold text-lg leading-tight">Vikram R. </h3>
                   <p className="text-xs text-primary uppercase tracking-wider">
                     Pro Coach
                   </p>
@@ -100,38 +100,31 @@ const Reviews = () => {
               <div>
                 <div className="flex text-yellow-500 mb-4 text-xl">★★★★★</div>
                 <p className="text-2xl font-serif italic text-gray-300 leading-relaxed">
-                  "No more playing in shadows. The lighting setup looks like a
+                  "No more playing in shadows. The lighting setup looks like a Like this 
                   stadium."
                 </p>
               </div>
               <div className="flex items-center gap-3 mt-6 border-t border-zinc-800 pt-4">
                 <div className="w-8 h-8 rounded-full bg-gray-700"></div>
                 <span className="font-bold text-sm">
-                  Anjali P.{" "}
+                  Anjali P. 
                   <span className="text-gray-500 font-normal ml-1">
-                    / Waiting List
+                     Waiting List
                   </span>
                 </span>
               </div>
             </div>
 
             <div className="relative overflow-hidden rounded-3xl h-64 group cursor-pointer">
-              <img
-                src="https://images.unsplash.com/photo-1575361204480-aadea25e6e68?q=80&w=2071&auto=format&fit=crop"
+              <video
+                src="/src/assets/rev.mp4"
                 className="absolute inset-0 w-full h-full object-cover transition duration-700 group-hover:scale-110 opacity-60"
-                alt="Football"
+                autoPlay
+                loop
+                muted
+                playsInline
               />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:scale-110 transition">
-                  <svg
-                    className="w-6 h-6 text-white ml-1"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                  </svg>
-                </span>
-              </div>
+              
             </div>
           </div>
 
@@ -217,7 +210,7 @@ const Reviews = () => {
       <div className="relative py-32 px-6 text-center overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
         <div className="relative z-10 max-w-4xl mx-auto">
-          <h2 className="text-5xl md:text-8xl font-black tracking-tighter mb-8">
+          <h2 className="text-5xl md:text-8xl font-black tracking-tighter mb-8 overflow-hidden">
             MAKE YOUR MARK.
           </h2>
           <p className="text-xl md:text-2xl text-gray-400 mb-10 max-w-2xl mx-auto">

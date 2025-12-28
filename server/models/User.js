@@ -22,7 +22,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: "user",
         enum: ["user", "owner"]
-    }
+    }, phone: {
+        type: String,
+        default: ""
+    },
 }, { timestamps: true })
 
 

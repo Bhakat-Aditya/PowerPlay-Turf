@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useAuth, useUser } from "@clerk/clerk-react";
+import { useAuth } from "@clerk/clerk-react";
 import { toast } from "react-hot-toast";
 
 const AdminDashboard = () => {
@@ -8,14 +8,19 @@ const AdminDashboard = () => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   const [activeTab, setActiveTab] = useState("bookings");
+
+  // Data States
   const [bookings, setBookings] = useState([]);
   const [turfs, setTurfs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // --- SELECTION STATE ---
-  const [selectedIds, setSelectedIds] = useState([]);
+  // Pagination States
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalBookings, setTotalBookings] = useState(0);
 
-  // --- Bulk Booking Form State ---
+  // Selection & Bulk State
+  const [selectedIds, setSelectedIds] = useState([]);
   const [bulkData, setBulkData] = useState({
     userEmail: "",
     turfId: "",
@@ -27,19 +32,28 @@ const AdminDashboard = () => {
 
   const daysOptions = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  const fetchData = async () => {
+  // --- Fetch Data (Updated for Pagination) ---
+  const fetchData = async (pageNum = 1) => {
     try {
       setLoading(true);
       const token = await getToken();
 
       const [bookingsRes, turfsRes] = await Promise.all([
-        axios.get(`${backendUrl}/api/bookings/all`, {
+        // Pass page & limit=60
+        axios.get(`${backendUrl}/api/bookings/all?page=${pageNum}&limit=60`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
         axios.get(`${backendUrl}/api/turfs`),
       ]);
 
-      if (bookingsRes.data.success) setBookings(bookingsRes.data.bookings);
+      if (bookingsRes.data.success) {
+        setBookings(bookingsRes.data.bookings);
+        // Update Pagination State
+        setPage(bookingsRes.data.pagination.currentPage);
+        setTotalPages(bookingsRes.data.pagination.totalPages);
+        setTotalBookings(bookingsRes.data.pagination.totalBookings);
+      }
+
       if (turfsRes.data.success) setTurfs(turfsRes.data.turfs);
 
       if (!loading) toast.success("Dashboard refreshed");
@@ -52,13 +66,29 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    if (isLoaded && isSignedIn) fetchData();
-  }, [isLoaded, isSignedIn]);
+    if (isLoaded && isSignedIn) fetchData(page);
+  }, [isLoaded, isSignedIn]); // Only initial load, page change handled by manual calls
+
+  // --- Pagination Handlers ---
+  const handleNextPage = () => {
+    if (page < totalPages) {
+      const newPage = page + 1;
+      setPage(newPage);
+      fetchData(newPage);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (page > 1) {
+      const newPage = page - 1;
+      setPage(newPage);
+      fetchData(newPage);
+    }
+  };
 
   // --- SELECTION LOGIC ---
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      // Select only cancellable bookings (not already cancelled)
       const allCancellableIds = bookings
         .filter((b) => b.status !== "cancelled")
         .map((b) => b._id);
@@ -76,30 +106,21 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- BULK CANCEL ACTION ---
   const handleBulkCancelAction = async () => {
-    if (
-      !window.confirm(
-        `Are you sure you want to cancel ${selectedIds.length} bookings? This will generate full refunds.`
-      )
-    )
-      return;
-
+    if (!window.confirm(`Cancel ${selectedIds.length} bookings?`)) return;
     try {
       const token = await getToken();
-      toast.loading("Cancelling bookings...");
-
+      toast.loading("Processing...");
       const { data } = await axios.put(
         `${backendUrl}/api/bookings/admin-cancel-bulk`,
         { bookingIds: selectedIds },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
       toast.dismiss();
       if (data.success) {
         toast.success(data.message);
-        setSelectedIds([]); // Clear selection
-        fetchData(); // Refresh list
+        setSelectedIds([]);
+        fetchData(page); // Stay on current page
       }
     } catch (error) {
       toast.dismiss();
@@ -107,9 +128,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- Actions ---
   const markAsPaid = async (bookingId) => {
-    // ... (Keep existing code)
     if (!window.confirm("Mark as PAID?")) return;
     try {
       const token = await getToken();
@@ -120,20 +139,16 @@ const AdminDashboard = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      toast.success("Marked as Paid");
-      fetchData();
+      toast.success("Updated");
+      fetchData(page);
     } catch (error) {
-      toast.error("Action failed");
+      toast.error("Failed");
     }
   };
 
   const cancelBookingByAdmin = async (bookingId) => {
-    // ... (Keep existing code)
-    const confirmCancel = window.prompt(
-      "Type 'CANCEL' to confirm full refund cancellation:"
-    );
+    const confirmCancel = window.prompt("Type 'CANCEL' to confirm:");
     if (confirmCancel !== "CANCEL") return;
-
     try {
       const token = await getToken();
       await axios.put(
@@ -143,18 +158,16 @@ const AdminDashboard = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      toast.success("Booking Cancelled");
-      fetchData();
+      toast.success("Cancelled");
+      fetchData(page);
     } catch (error) {
-      toast.error("Cancellation failed");
+      toast.error("Failed");
     }
   };
 
   const handleUpdatePrice = async (turfId, currentPrice) => {
-    // ... (Keep existing code)
-    const newPrice = prompt("Enter new price per hour:", currentPrice);
+    const newPrice = prompt("Enter new price:", currentPrice);
     if (!newPrice || newPrice === currentPrice) return;
-
     try {
       const token = await getToken();
       await axios.put(
@@ -165,21 +178,18 @@ const AdminDashboard = () => {
         }
       );
       toast.success("Price updated!");
-      fetchData();
+      fetchData(page);
     } catch (error) {
       toast.error("Update failed");
     }
   };
 
   const handleBulkSubmit = async (e) => {
-    // ... (Keep existing code)
     e.preventDefault();
-    if (bulkData.selectedDays.length === 0)
-      return toast.error("Select at least one day");
-
+    if (bulkData.selectedDays.length === 0) return toast.error("Select days");
     try {
       const token = await getToken();
-      toast.loading("Processing...");
+      toast.loading("Booking...");
       const { data } = await axios.post(
         `${backendUrl}/api/bookings/bulk-create`,
         bulkData,
@@ -191,11 +201,11 @@ const AdminDashboard = () => {
       if (data.success) {
         toast.success(data.message);
         setActiveTab("bookings");
-        fetchData();
+        fetchData(1); // Go back to page 1 to see new bookings
       }
     } catch (error) {
       toast.dismiss();
-      toast.error(error.response?.data?.message || "Bulk booking failed");
+      toast.error(error.response?.data?.message || "Failed");
     }
   };
 
@@ -211,13 +221,13 @@ const AdminDashboard = () => {
   if (loading && bookings.length === 0)
     return (
       <div className="min-h-screen flex items-center justify-center font-bold text-gray-500">
-        Loading Admin Console...
+        Loading Admin...
       </div>
     );
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 px-4 pb-12 font-sans relative">
-      {/* --- FLOATING BULK ACTION BAR --- */}
+      {/* BULK ACTION BAR */}
       {selectedIds.length > 0 && activeTab === "bookings" && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full shadow-2xl z-50 flex items-center gap-6 animate-bounce-in">
           <span className="font-bold">{selectedIds.length} Selected</span>
@@ -237,61 +247,43 @@ const AdminDashboard = () => {
       )}
 
       <div className="max-w-7xl mx-auto">
-        {/* --- HEADER --- */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
-            <h1 className="text-4xl font-black text-gray-900 tracking-tight">
-              Admin Console
-            </h1>
+            <h1 className="text-4xl font-black text-gray-900">Admin Console</h1>
             <p className="text-gray-500 mt-1">
-              Manage bookings, turfs, and financials.
+              Total Bookings: {totalBookings}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              onClick={fetchData}
-              className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm transition-all"
+              onClick={() => fetchData(page)}
+              className="bg-white border px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm hover:bg-gray-50"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                ></path>
-              </svg>
-              Refresh List
+              Refresh
             </button>
-
-            <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
+            <div className="flex bg-white p-1 rounded-xl shadow-sm border">
               {["bookings", "turfs", "bulk"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-5 py-2 rounded-lg text-sm font-bold capitalize transition-all ${
+                  className={`px-5 py-2 rounded-lg text-sm font-bold capitalize ${
                     activeTab === tab
-                      ? "bg-black text-white shadow-md"
+                      ? "bg-black text-white"
                       : "text-gray-500 hover:bg-gray-50"
                   }`}
                 >
-                  {tab === "bulk" ? "⚡ Bulk" : tab}
+                  {tab}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* --- TAB 1: BOOKINGS --- */}
         {activeTab === "bookings" && (
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 flex flex-col">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left">
                 <thead className="bg-gray-100 text-xs uppercase text-gray-500 tracking-wider">
                   <tr>
                     <th className="px-6 py-4 w-10 text-center">
@@ -304,7 +296,6 @@ const AdminDashboard = () => {
                             bookings.filter((b) => b.status !== "cancelled")
                               .length
                         }
-                        className="rounded border-gray-300 text-black focus:ring-black"
                       />
                     </th>
                     <th className="px-6 py-4 font-bold">User</th>
@@ -318,38 +309,30 @@ const AdminDashboard = () => {
                 <tbody className="divide-y divide-gray-100 text-sm">
                   {bookings.map((b) => {
                     const isCancelled = b.status === "cancelled";
-                    const fee = b.amount - (b.refundAmount || 0);
-
                     return (
                       <tr
                         key={b._id}
-                        className={`hover:bg-gray-50 transition ${
+                        className={`hover:bg-gray-50 ${
                           selectedIds.includes(b._id) ? "bg-blue-50" : ""
                         }`}
                       >
-                        {/* Checkbox */}
                         <td className="px-6 py-4 text-center">
                           {!isCancelled && (
                             <input
                               type="checkbox"
                               checked={selectedIds.includes(b._id)}
                               onChange={() => handleSelectOne(b._id)}
-                              className="rounded border-gray-300 text-black focus:ring-black w-4 h-4 cursor-pointer"
                             />
                           )}
                         </td>
-
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
-                              <img
-                                src={b.user?.image}
-                                alt=""
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
+                            <img
+                              src={b.user?.image}
+                              className="w-8 h-8 rounded-full bg-gray-200 object-cover"
+                            />
                             <div>
-                              <p className="font-bold text-gray-900">
+                              <p className="font-bold">
                                 {b.user?.name || "Unknown"}
                               </p>
                               <p className="text-xs text-gray-500">
@@ -359,9 +342,7 @@ const AdminDashboard = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <p className="font-bold text-gray-800">
-                            {b.turf?.name}
-                          </p>
+                          <p className="font-bold">{b.turf?.name}</p>
                           <p className="text-xs text-gray-500 mt-1">
                             📅 {new Date(b.date).toLocaleDateString()} •{" "}
                             {b.timeSlot}
@@ -373,29 +354,32 @@ const AdminDashboard = () => {
                               <span className="text-xs text-gray-400 line-through">
                                 ₹{b.amount}
                               </span>
-                              <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded text-xs mt-1 border border-green-100">
+                              <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded text-xs mt-1">
                                 Refunded: ₹{b.refundAmount}
                               </span>
-                              {fee > 0 && (
-                                <span className="text-[10px] text-red-500 font-bold mt-0.5">
-                                  Fee: ₹{fee}
-                                </span>
-                              )}
                             </div>
                           ) : (
                             <div className="flex flex-col items-center">
-                              <span className="font-bold text-lg">
-                                ₹{b.amount}
-                              </span>
-                              <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                                  b.isPaid
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-orange-100 text-orange-700"
-                                }`}
-                              >
-                                {b.isPaid ? "PAID" : "PENDING"}
-                              </span>
+                              {b.amount === 0 ? (
+                                <span className="text-[10px] font-black bg-gray-200 text-gray-600 px-3 py-1 rounded-full uppercase tracking-wider">
+                                  BULK / OFFLINE
+                                </span>
+                              ) : (
+                                <>
+                                  <span className="font-bold text-lg">
+                                    ₹{b.amount}
+                                  </span>
+                                  <span
+                                    className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                      b.isPaid
+                                        ? "bg-green-100 text-green-700"
+                                        : "bg-orange-100 text-orange-700"
+                                    }`}
+                                  >
+                                    {b.isPaid ? "PAID" : "PENDING"}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           )}
                         </td>
@@ -405,20 +389,20 @@ const AdminDashboard = () => {
                               {!b.isPaid && (
                                 <button
                                   onClick={() => markAsPaid(b._id)}
-                                  className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-700"
+                                  className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold"
                                 >
                                   ✓ Paid
                                 </button>
                               )}
                               <button
                                 onClick={() => cancelBookingByAdmin(b._id)}
-                                className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition"
+                                className="text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-50"
                               >
                                 Cancel
                               </button>
                             </div>
                           ) : (
-                            <span className="text-gray-400 font-bold text-xs uppercase tracking-wider">
+                            <span className="text-gray-400 font-bold text-xs uppercase">
                               Cancelled
                             </span>
                           )}
@@ -429,10 +413,42 @@ const AdminDashboard = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* PAGINATION CONTROLS */}
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+              <span className="text-sm text-gray-500 font-medium">
+                Page <span className="font-bold text-black">{page}</span> of{" "}
+                {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={page === 1}
+                  className={`px-4 py-2 text-sm font-bold rounded-lg border ${
+                    page === 1
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={handleNextPage}
+                  disabled={page === totalPages}
+                  className={`px-4 py-2 text-sm font-bold rounded-lg border ${
+                    page === totalPages
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* ... (Keep TAB 2 and TAB 3 same as before) ... */}
+        {/* ... (Keep Turfs and Bulk Tab same as before) ... */}
         {activeTab === "turfs" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {turfs.map((turf) => (
@@ -452,7 +468,7 @@ const AdminDashboard = () => {
                   </span>
                   <button
                     onClick={() => handleUpdatePrice(turf._id, turf.price)}
-                    className="text-lg font-bold bg-green-500 text-black px-3 py-1.5 rounded-lg hover:bg-green-600"
+                    className="text-sm font-bold text-gray-600 underline hover:text-black"
                   >
                     Edit Price
                   </button>
@@ -506,7 +522,6 @@ const AdminDashboard = () => {
                   <option>07:00 PM - 08:00 PM</option>
                 </select>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <input
                   type="date"
@@ -527,7 +542,6 @@ const AdminDashboard = () => {
                   required
                 />
               </div>
-
               <div>
                 <p className="text-xs font-bold text-gray-500 mb-2 uppercase">
                   Repeat Days
@@ -549,7 +563,6 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               </div>
-
               <button
                 type="submit"
                 className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition"

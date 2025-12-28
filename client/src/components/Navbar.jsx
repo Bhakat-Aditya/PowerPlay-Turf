@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import logo from "../assets/logo.png";
 import React, { useEffect, useState } from "react";
-import { useClerk, UserButton } from "@clerk/clerk-react";
+import { useClerk, UserButton, useUser } from "@clerk/clerk-react"; // 1. Imported useUser
 import { useAppContext } from "../context/AppContext";
 
 const BookIcon = () => (
@@ -29,10 +29,13 @@ const Navbar = () => {
     { name: "Home", path: "/" },
     { name: "Facilities", path: "/facilities" },
     { name: "Reviews", path: "/reviews" },
-    { name: "About", path: "/about" }, // <--- Updated Path
+    { name: "About", path: "/about" },
   ];
 
   const ref = React.useRef(null);
+
+  // 2. Get the loading state from Clerk
+  const { isLoaded } = useUser();
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -55,6 +58,12 @@ const Navbar = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [location.pathname]);
+
+  // 3. STOP! If Clerk isn't ready, don't render anything yet.
+  // This prevents the "Unknown User" flash and the SVG error.
+  if (!isLoaded) {
+    return null;
+  }
 
   return (
     <nav
@@ -129,7 +138,6 @@ const Navbar = () => {
       </div>
 
       {/* Mobile Menu Button */}
-
       <div className="flex items-center gap-3 md:hidden">
         {user && (
           <UserButton>
@@ -180,7 +188,6 @@ const Navbar = () => {
         </button>
 
         {navLinks.map((link, i) => (
-          // Fixed: Changed <a> to <Link> for correct routing
           <Link key={i} to={link.path} onClick={() => setIsMenuOpen(false)}>
             {link.name}
           </Link>
