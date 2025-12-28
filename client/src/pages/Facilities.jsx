@@ -110,7 +110,7 @@ const Facilities = () => {
           </div>
 
           {/* UPDATED Amenities Grid with Individual Backgrounds */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 overflow-y-hidden">
             {generalAmenities.map((item, index) => (
               <div
                 key={index}
@@ -150,7 +150,7 @@ const Facilities = () => {
       {/* --- DETAILED SPORTS LIST --- */}
       <div className="bg-black text-white py-16">
         <div className="max-w-7xl mx-auto px-4 md:px-16 lg:px-24">
-          <h2 className="text-3xl font-bold mb-10 text-center uppercase tracking-widest text-gray-400">
+          <h2 className="text-3xl font-bold mb-10 text-center uppercase tracking-widest text-gray-400 overflow-y-hidden">
             {searchParams.sport
               ? `${searchParams.sport} Arenas`
               : "Our Sports Arenas"}
