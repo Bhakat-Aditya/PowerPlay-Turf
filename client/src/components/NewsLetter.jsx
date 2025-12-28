@@ -12,19 +12,19 @@ const NewsLetter = () => {
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/20 rounded-full blur-[128px] animate-pulse -z-10 animation-delay-2000"></div>
 
       {/* Floating Icons (Simulated with text/svg for performance) */}
-      <div className="absolute top-10 left-10 md:left-40 text-6xl opacity-10 animate-bounce duration-[3000ms]">
+      <div className="absolute top-10 left-10 md:left-40 text-6xl opacity-10 animate-bounce duration-[3000ms] overflow-y-hidden">
         ⚽
       </div>
-      <div className="absolute bottom-20 right-10 md:right-40 text-6xl opacity-10 animate-bounce duration-[4000ms]">
+      <div className="absolute bottom-20 right-10 md:right-40 text-6xl opacity-10 animate-bounce duration-[4000ms] overflow-y-hidden">
         🏏
       </div>
-      <div className="absolute top-1/2 right-10 text-4xl opacity-10 animate-ping duration-[2000ms]">
+      <div className="absolute top-1/2 right-10 text-4xl opacity-10 animate-ping duration-[2000ms] overflow-y-hidden">
         🔔
       </div>
 
       {/* 2. GLASS CARD CONTAINER */}
-      <div className="mx-auto max-w-4xl px-6 relative z-10">
-        <div className="relative rounded-3xl bg-white/5 border border-white/10 p-8 sm:p-16 backdrop-blur-sm text-center shadow-2xl overflow-hidden group">
+      <div className="mx-auto max-w-4xl px-6 relative z-10 overflow-y-hidden">
+        <div className="relative rounded-3xl bg-white/5 border overflow-y-hidden border-white/10 p-8 sm:p-16 backdrop-blur-sm text-center shadow-2xl overflow-hidden group">
           {/* Shine Effect on Hover */}
           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out"></div>
 
@@ -33,14 +33,14 @@ const NewsLetter = () => {
             DON'T PLAY <span className="text-primary">ALONE.</span>
           </h2>
 
-          <p className="mx-auto max-w-xl text-lg text-gray-400 mb-10 leading-relaxed">
+          <p className="mx-auto max-w-xl text-lg text-gray-400 mb-10 leading-relaxed overflow-y-hidden">
             Finding a team shouldn't be harder than winning the match. Join our{" "}
             <strong>VIP WhatsApp Community</strong> to find opponents, get slot
             alerts, and trash talk (respectfully).
           </p>
 
           {/* 3. THE "GLOWING" CTA BUTTON */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 overflow-y-hidden">
             <a
               href={whatsappGroupLink}
               target="_blank"
