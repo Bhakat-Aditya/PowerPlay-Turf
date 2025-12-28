@@ -30,7 +30,7 @@ const PhoneModal = ({ onSubmit, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-hidden">
       <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full relative animate-fadeIn">
         <div className="text-center mb-6">
           <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">

@@ -92,7 +92,7 @@ const Facilities = () => {
         <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-16 lg:px-24">
           {/* Header */}
           <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 font-playfair tracking-tight">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 font-playfair tracking-tight overflow-y-hidden">
               World-Class <span className="text-green-600">Amenities</span>
             </h1>
 
@@ -131,7 +131,7 @@ const Facilities = () => {
 
                 {/* Content */}
                 <div className="relative z-20">
-                  <span className="text-5xl mb-4 block drop-shadow-md">
+                  <span className="text-5xl mb-4 block drop-shadow-md overflow-y-hidden">
                     {item.icon}
                   </span>
                   <h3 className="font-bold text-white text-xl mb-2 tracking-wide">

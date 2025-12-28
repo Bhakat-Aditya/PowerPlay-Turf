@@ -63,7 +63,7 @@ const About = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
             {/* Left: Sticky Headline */}
             <div className="lg:col-span-5 lg:sticky lg:top-32 self-start">
-              <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tight leading-none">
+              <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tight leading-none overflow-y-hidden">
                 BUILT FOR <br /> US. <br />
                 <span
                   className="text-stroke text-white drop-shadow-xl"
@@ -134,7 +134,7 @@ const About = () => {
       <div className="bg-zinc-900 py-24 px-4 overflow-hidden relative">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 overflow-y-hidden">
               A Glimpse of the Future
             </h2>
             <p className="text-gray-400">What we are building for you.</p>
@@ -214,7 +214,7 @@ const About = () => {
 
       {/* 4. FOOTER STATEMENT */}
       <div className="py-24 px-6 text-center bg-black border-t border-gray-900">
-        <h2 className="text-6xl md:text-9xl font-black text-gray-900 tracking-tighter hover:text-gray-800 transition duration-500 cursor-default select-none">
+        <h2 className="text-6xl md:text-9xl font-black text-gray-900 tracking-tighter overflow-y-hidden hover:text-gray-800 transition duration-500 cursor-default select-none">
           POWERPLAY
         </h2>
         <p className="text-xl text-white mt-4 max-w-lg mx-auto">

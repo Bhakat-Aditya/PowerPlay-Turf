@@ -153,7 +153,7 @@ const Reviews = () => {
 
             {/* Text Block */}
             <div className="p-4">
-              <p className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-800">
+              <p className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-800 overflow-y-hidden">
                 BE THE <br /> FIRST.
               </p>
             </div>
@@ -165,7 +165,7 @@ const Reviews = () => {
       <div className="bg-white text-black py-20 px-6 transform -skew-y-1 my-10">
         <div className="max-w-7xl mx-auto transform skew-y-1">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">
+            <h2 className="text-4xl font-bold mb-4 overflow-y-hidden">
               What excites you the most?
             </h2>
             <p className="text-gray-500">Based on our pre-launch survey</p>

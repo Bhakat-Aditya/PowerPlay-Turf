@@ -39,8 +39,8 @@ function Services() {
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-12">
-          <h2 className="text-8xl font-extrabold text-gray-900 sm:text-4xl">
-            Our <span className="text-green-600">Facilities</span>
+          <h2 className="text-8xl font-extrabold text-gray-900 sm:text-4xl overflow-y-hidden">
+            Our <span className="text-green-600 overflow-y-hidden">Facilities</span>
           </h2>
           <p className="mt-4 text-lg text-gray-500">
             World-class sports infrastructure right here in Midnapore.

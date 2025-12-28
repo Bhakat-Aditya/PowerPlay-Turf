@@ -9,13 +9,13 @@ const AboutSection = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           
           {/* Left: Images Grid (Simulated for visual appeal) */}
-          <div className="relative">
+          <div className="relative overflow-y-hidden">
              {/* Main Image */}
             <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-white transform rotate-2 hover:rotate-0 transition duration-500">
               <img 
                 src="https://images.unsplash.com/photo-1529900748604-07564a03e7a6?q=80&w=2070&auto=format&fit=crop" 
                 alt="Turf Action" 
-                className="w-full h-auto object-cover"
+                className="w-full h-auto object-cover overflow-y-hidden"
               />
             </div>
             {/* Overlay/Accent Image */}
@@ -31,7 +31,7 @@ const AboutSection = () => {
           {/* Right: Text Content */}
           <div>
             <h2 className="text-base font-semibold text-primary tracking-wide uppercase">About Us</h2>
-            <p className="mt-2 text-3xl font-extrabold text-gray-900 sm:text-4xl">
+            <p className="mt-2 text-3xl font-extrabold text-gray-900 sm:text-4xl overflow-y-hidden">
               More Than Just a Turf. <br/> It's an Experience.
             </p>
             <p className="mt-4 text-lg text-gray-500 leading-relaxed">

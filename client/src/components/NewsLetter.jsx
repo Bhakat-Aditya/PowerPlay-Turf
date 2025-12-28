@@ -29,7 +29,7 @@ const NewsLetter = () => {
           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out"></div>
 
           {/* Headline */}
-          <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-6">
+          <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-6 overflow-y-hidden">
             DON'T PLAY <span className="text-primary">ALONE.</span>
           </h2>
 
