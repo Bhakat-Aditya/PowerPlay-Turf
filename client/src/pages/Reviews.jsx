@@ -70,7 +70,9 @@ const Reviews = () => {
                   V
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg leading-tight">Vikram R. </h3>
+                  <h3 className="font-bold text-lg leading-tight">
+                    Vikram R.{" "}
+                  </h3>
                   <p className="text-xs text-primary uppercase tracking-wider">
                     Pro Coach
                   </p>
@@ -100,16 +102,16 @@ const Reviews = () => {
               <div>
                 <div className="flex text-yellow-500 mb-4 text-xl">★★★★★</div>
                 <p className="text-2xl font-serif italic text-gray-300 leading-relaxed">
-                  "No more playing in shadows. The lighting setup looks like a Like this 
-                  stadium."
+                  "No more playing in shadows. The lighting setup looks like a
+                  Like this stadium."
                 </p>
               </div>
               <div className="flex items-center gap-3 mt-6 border-t border-zinc-800 pt-4">
                 <div className="w-8 h-8 rounded-full bg-gray-700"></div>
                 <span className="font-bold text-sm">
-                  Anjali P. 
+                  Anjali P.
                   <span className="text-gray-500 font-normal ml-1">
-                     Waiting List
+                    Waiting List
                   </span>
                 </span>
               </div>
@@ -117,14 +119,13 @@ const Reviews = () => {
 
             <div className="relative overflow-hidden rounded-3xl h-64 group cursor-pointer">
               <video
-                src="/src/assets/rev.mp4"
+                src="https://res.cloudinary.com/adityabhakat/video/upload/v1767004170/rev_ipobqk.mp4"
                 className="absolute inset-0 w-full h-full object-cover transition duration-700 group-hover:scale-110 opacity-60"
                 autoPlay
                 loop
                 muted
                 playsInline
               />
-              
             </div>
           </div>
 

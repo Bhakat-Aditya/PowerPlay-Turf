@@ -135,7 +135,8 @@ export const getAllBookings = async (req, res) => {
         const totalPages = Math.ceil(totalBookings / limit);
 
         const bookings = await Booking.find({})
-            .populate('user', 'name email image')
+            // 👇 CHANGE 1: Added 'phone' here!
+            .populate('user', 'name email image phone')
             .populate('turf', 'name sportType location')
             // Sort by Created Time (Newest First)
             .sort({ createdAt: -1 })
@@ -184,7 +185,7 @@ export const cancelBookingAdmin = async (req, res) => {
     }
 };
 
-// 7. Bulk Booking (Offline/Free)
+// 7. Bulk Booking (Updated with Safety Checks)
 export const createBulkBooking = async (req, res) => {
     try {
         const { userEmail, turfId, timeSlot, startDate, endDate, selectedDays } = req.body;
@@ -205,15 +206,53 @@ export const createBulkBooking = async (req, res) => {
 
         if (datesToBook.length === 0) return res.status(400).json({ success: false, message: "No dates selected" });
 
+        // 👇 CHANGE 2: Restored Conflict Check Logic (Crucial!)
+        const turf = await Turf.findById(turfId);
+        const [reqStartStr, reqEndStr] = timeSlot.split(" - ");
+        const reqStart = parseTimeToMinutes(reqStartStr);
+        let reqEnd = parseTimeToMinutes(reqEndStr);
+        if (reqEnd <= reqStart) reqEnd += 24 * 60;
+
+        let conflictDate = null;
+
+        for (const dateObj of datesToBook) {
+            const existing = await Booking.find({
+                turf: turfId,
+                date: dateObj.toISOString().split('T')[0],
+                status: { $ne: 'cancelled' }
+            });
+
+            for (const b of existing) {
+                const [existStartStr, existEndStr] = b.timeSlot.split(" - ");
+                const existStart = parseTimeToMinutes(existStartStr);
+                let existEnd = parseTimeToMinutes(existEndStr);
+                if (existEnd <= existStart) existEnd += 24 * 60;
+
+                if (reqStart < existEnd && reqEnd > existStart) {
+                    conflictDate = dateObj.toISOString().split('T')[0];
+                    break;
+                }
+            }
+            if (conflictDate) break;
+        }
+
+        if (conflictDate) {
+            return res.status(400).json({ success: false, message: `Conflict on ${conflictDate}. Bulk action stopped.` });
+        }
+
+        // Calculate Price (Set to 0 if you want free, but better to have value)
+        const duration = (reqEnd - reqStart) / 60;
+        const singlePrice = turf.price * duration;
+
         const bookingPromises = datesToBook.map(dateObj => {
             return new Booking({
                 user: user._id,
                 turf: turfId,
                 date: dateObj.toISOString().split('T')[0],
                 timeSlot,
-                amount: 0,
+                amount: singlePrice, // Store actual value
                 paymentMethod: 'Offline/Bulk',
-                isPaid: true,
+                isPaid: false,  // Default to unpaid unless you want 'true'
                 status: 'booked'
             }).save();
         });
@@ -227,13 +266,12 @@ export const createBulkBooking = async (req, res) => {
     }
 };
 
-// 8. Bulk Cancel (Admin) - FIXED LOGIC
+// 8. Bulk Cancel (Admin)
 export const cancelBulkBookingsAdmin = async (req, res) => {
     try {
         const { bookingIds } = req.body;
         const userId = req.userId;
 
-        // 1. Verify Admin
         const adminUser = await User.findById(userId);
         if (!adminUser || adminUser.role !== 'owner') {
             return res.status(403).json({ success: false, message: "Access Denied" });
@@ -243,7 +281,6 @@ export const cancelBulkBookingsAdmin = async (req, res) => {
             return res.status(400).json({ success: false, message: "No bookings selected" });
         }
 
-        // 2. FETCH active bookings (Instead of UpdateMany Pipeline)
         const bookingsToCancel = await Booking.find({
             _id: { $in: bookingIds },
             status: { $ne: 'cancelled' }
@@ -253,10 +290,9 @@ export const cancelBulkBookingsAdmin = async (req, res) => {
             return res.json({ success: true, message: "No active bookings found to cancel." });
         }
 
-        // 3. Loop and Save (This avoids the MongooseError)
         const updates = bookingsToCancel.map(async (booking) => {
             booking.status = 'cancelled';
-            booking.refundAmount = booking.amount; // Copy full amount
+            booking.refundAmount = booking.amount;
             return booking.save();
         });
 

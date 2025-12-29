@@ -338,6 +338,10 @@ const AdminDashboard = () => {
                               <p className="text-xs text-gray-500">
                                 {b.user?.email}
                               </p>
+                              {/* 👇 ADDED PHONE NUMBER HERE */}
+                              <p className="text-xs text-gray-500">
+                                {b.user?.phone}
+                              </p>
                             </div>
                           </div>
                         </td>
