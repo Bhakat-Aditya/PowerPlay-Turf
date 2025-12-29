@@ -1,5 +1,6 @@
 import Turf from '../models/Turf.js';
 
+// 1. Get All Turfs (for Home Page)
 export const getAllTurfs = async (req, res) => {
     try {
         const turfs = await Turf.find({});
@@ -9,6 +10,7 @@ export const getAllTurfs = async (req, res) => {
     }
 }
 
+// 2. Get Single Turf (for Facility Details)
 export const getTurfById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -21,9 +23,30 @@ export const getTurfById = async (req, res) => {
     }
 }
 
+// 3. Update Turf (Admin)
+export const updateTurf = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+
+        const updatedTurf = await Turf.findByIdAndUpdate(id, updates, { new: true });
+
+        if (!updatedTurf) {
+            return res.status(404).json({ success: false, message: "Turf not found" });
+        }
+
+        res.json({ success: true, message: "Turf updated successfully!", turf: updatedTurf });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 4. Seeding Script (Be careful: Deletes existing data!)
 export const seedTurfs = async (req, res) => {
     try {
+        // Use the ID of the logged-in admin, or a fallback string if running manually
         const seedOwnerId = req.auth ? req.auth.userId : "seed_admin_id";
+
         const sampleData = [
             {
                 name: "Box Cricket",
@@ -57,6 +80,7 @@ export const seedTurfs = async (req, res) => {
             }
         ];
 
+        // DANGER: This wipes the database collection
         await Turf.deleteMany({});
         await Turf.insertMany(sampleData);
 
@@ -65,24 +89,3 @@ export const seedTurfs = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 }
-
-
-// ... existing code ...
-
-// Update Turf Details (Price, Name, etc.)
-export const updateTurf = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const updates = req.body;
-
-        const updatedTurf = await Turf.findByIdAndUpdate(id, updates, { new: true });
-
-        if (!updatedTurf) {
-            return res.status(404).json({ success: false, message: "Turf not found" });
-        }
-
-        res.json({ success: true, message: "Turf updated successfully!", turf: updatedTurf });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};

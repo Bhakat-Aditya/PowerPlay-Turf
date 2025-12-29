@@ -23,6 +23,9 @@ const FacilityDetails = () => {
   const [selectedSlot, setSelectedSlot] = useState(startTime || "");
   const [duration, setDuration] = useState(initialDuration || 1);
 
+  // NEW: State to prevent double-clicks
+  const [isBookingProcessing, setIsBookingProcessing] = useState(false);
+
   // Lightbox State
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [currentImage, setCurrentImage] = useState("");
@@ -78,12 +81,17 @@ const FacilityDetails = () => {
     return options;
   };
 
-  // --- UPDATED HANDLER: Accepts Payment Method ---
+  // --- UPDATED HANDLER: Prevents Double Click ---
   const handleBooking = async (paymentMethod) => {
     if (!isSignedIn) return toast.error("Please login to book");
     if (!bookingDate || !selectedSlot) return toast.error("Select date/time");
 
+    // Prevent function from running if already processing
+    if (isBookingProcessing) return;
+
     try {
+      setIsBookingProcessing(true); // Lock buttons
+
       const token = await getToken();
       const { data } = await axios.post(
         `${backendUrl}/api/bookings/book`,
@@ -91,16 +99,18 @@ const FacilityDetails = () => {
           turfId: turf._id,
           date: bookingDate,
           timeSlot: formatSlotForDB(selectedSlot, duration),
-          paymentMethod: paymentMethod, // <--- CRITICAL CHANGE: Sending 'Cash' or 'Online'
+          paymentMethod: paymentMethod,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
       if (data.success) {
         toast.success(data.message);
         navigate("/bookings");
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Booking Failed");
+      setIsBookingProcessing(false); // Unlock buttons only on error
     }
   };
 
@@ -267,20 +277,32 @@ const FacilityDetails = () => {
                   </div>
                 </div>
 
-                {/* --- CHANGED: TWO BUTTONS FOR PAYMENT METHOD --- */}
+                {/* --- CHANGED: BUTTONS WITH LOADING STATE --- */}
                 <div className="flex flex-col gap-3 mt-6">
                   <button
                     onClick={() => handleBooking("Online")}
-                    className="w-full bg-blue-600 text-white text-lg font-bold py-3 rounded-xl hover:bg-blue-700 transition-all shadow-md"
+                    disabled={isBookingProcessing} // <--- Disabled state
+                    className={`w-full text-white text-lg font-bold py-3 rounded-xl transition-all shadow-md 
+                      ${
+                        isBookingProcessing
+                          ? "bg-blue-400 cursor-not-allowed"
+                          : "bg-blue-600 hover:bg-blue-700"
+                      }`}
                   >
-                    💳 Pay Online
+                    {isBookingProcessing ? "Processing..." : "💳 Pay Online"}
                   </button>
 
                   <button
                     onClick={() => handleBooking("Cash")}
-                    className="w-full bg-green-600 text-white text-lg font-bold py-3 rounded-xl hover:bg-green-700 transition-all shadow-md"
+                    disabled={isBookingProcessing} // <--- Disabled state
+                    className={`w-full text-white text-lg font-bold py-3 rounded-xl transition-all shadow-md 
+                      ${
+                        isBookingProcessing
+                          ? "bg-green-400 cursor-not-allowed"
+                          : "bg-green-600 hover:bg-green-700"
+                      }`}
                   >
-                    📍 Pay at Venue
+                    {isBookingProcessing ? "Processing..." : "📍 Pay at Venue"}
                   </button>
                 </div>
                 <p className="text-center text-xs text-gray-400 mt-2">
