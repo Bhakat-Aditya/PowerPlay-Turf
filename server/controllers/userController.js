@@ -1,34 +1,36 @@
-import User from '../models/User.js'; // <--- Import the User model
+import User from '../models/User.js';
 
 export const getUserData = async (req, res) => {
     try {
-        // The middleware sets req.userId, NOT req.user
-        const userId = req.userId; 
-
-        // Fetch the user from MongoDB
+        const userId = req.userId;
         const user = await User.findById(userId);
 
         if (!user) {
             return res.status(404).json({ success: false, message: "User not found" });
         }
 
-        // Now we can access the role
-        res.json({ success: true, role: user.role });
+        // FIX: Return 'phone' so the frontend knows it exists!
+        res.json({
+            success: true,
+            role: user.role,
+            phone: user.phone  // <--- ADD THIS LINE
+        });
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ success: false, message: "Error fetching user data: " + error.message });
+        res.status(500).json({ success: false, message: "Error fetching user data" });
     }
 }
+
 export const updateUserPhone = async (req, res) => {
     try {
-        const userId = req.userId; // Coming from authMiddleware
+        const userId = req.userId;
         const { phone } = req.body;
 
         const user = await User.findByIdAndUpdate(
-            userId, 
-            { phone: phone }, 
-            { new: true } // Returns the updated user
+            userId,
+            { phone: phone },
+            { new: true }
         );
 
         res.json({ success: true, message: "Phone number saved!", user });
