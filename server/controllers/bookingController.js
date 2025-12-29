@@ -1,6 +1,7 @@
 import Booking from '../models/Booking.js';
 import Turf from '../models/Turf.js';
 import User from '../models/User.js';
+import { sendEmail } from '../utils/email.js';
 
 // Helper: Convert "06:00 PM" to minutes
 const parseTimeToMinutes = (timeStr) => {
@@ -60,6 +61,19 @@ export const createBooking = async (req, res) => {
 
         await newBooking.save();
 
+        // --- EMAIL LOGIC: Pay at Venue Confirmation ---
+        try {
+            const user = await User.findById(userId);
+            if (user && user.email && paymentMethod === 'Cash') {
+                const subject = "✅ Booking Confirmed (Pay at Venue)";
+                const message = `Hi ${user.name},\n\nYour booking is confirmed!\n\n🏟 Turf: ${turf.name}\n📅 Date: ${date}\n⏰ Time: ${timeSlot}\n💰 Amount to Pay: ₹${totalAmount}\n\nPlease pay at the venue before your match starts.\n\nEnjoy your game!\n- PowerPlay Team`;
+                sendEmail(user.email, subject, message);
+            }
+        } catch (emailError) {
+            console.log("Email failed:", emailError.message);
+        }
+        // ----------------------------------------------
+
         if (paymentMethod === 'Cash') {
             return res.status(201).json({ success: true, message: "Booking Confirmed! Pay at venue.", booking: newBooking });
         }
@@ -98,7 +112,9 @@ export const cancelBooking = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.userId;
-        const booking = await Booking.findById(id);
+
+        // Populating turf so we can use turf name in the email
+        const booking = await Booking.findById(id).populate('turf');
 
         if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
         if (booking.user.toString() !== userId) return res.status(403).json({ success: false, message: "Unauthorized" });
@@ -109,11 +125,35 @@ export const cancelBooking = async (req, res) => {
         bookingDate.setMinutes(bookingDate.getMinutes() + startMinutes);
 
         const hoursDiff = (bookingDate - new Date()) / (1000 * 60 * 60);
-        let refundAmount = hoursDiff < 24 ? booking.amount * 0.70 : booking.amount;
+        let refundAmount = 0;
+
+        // Only calculate refund if paid
+        if (booking.isPaid) {
+            refundAmount = hoursDiff < 24 ? booking.amount * 0.70 : booking.amount;
+        }
 
         booking.status = 'cancelled';
         booking.refundAmount = Math.floor(refundAmount);
         await booking.save();
+
+        // --- EMAIL LOGIC: User Cancellation ---
+        try {
+            const user = await User.findById(userId);
+            if (user && user.email) {
+                const subject = "❌ Booking Cancelled";
+                let message = `Hi ${user.name},\n\nYour booking for ${booking.turf?.name || 'Turf'} on ${booking.date} has been cancelled as requested.`;
+
+                if (booking.isPaid) {
+                    message += `\n\n💰 Refund Status: Since you paid online, a refund of ₹${booking.refundAmount} will be processed to your original payment method within 5-7 business days.`;
+                } else {
+                    message += `\n\n💰 No refund is applicable as this was a 'Pay at Venue' booking.`;
+                }
+                sendEmail(user.email, subject, message);
+            }
+        } catch (emailError) {
+            console.log("Email failed:", emailError.message);
+        }
+        // ---------------------------------------
 
         res.json({ success: true, message: "Cancelled", refundAmount: booking.refundAmount });
 
@@ -135,7 +175,7 @@ export const getAllBookings = async (req, res) => {
         const totalPages = Math.ceil(totalBookings / limit);
 
         const bookings = await Booking.find({})
-            // 👇 CHANGE 1: Added 'phone' here!
+            // Added 'phone' here!
             .populate('user', 'name email image phone')
             .populate('turf', 'name sportType location')
             // Sort by Created Time (Newest First)
@@ -169,15 +209,32 @@ export const cancelBookingAdmin = async (req, res) => {
             return res.status(403).json({ success: false, message: "Access Denied" });
         }
 
-        const booking = await Booking.findById(id);
+        // Populate user and turf for email details
+        const booking = await Booking.findById(id)
+            .populate('user')
+            .populate('turf');
+
         if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
 
         if (booking.status === 'cancelled') return res.status(400).json({ success: false, message: "Already cancelled" });
 
         booking.status = 'cancelled';
-        booking.refundAmount = booking.amount;
+        booking.refundAmount = booking.amount; // Full refund
 
         await booking.save();
+
+        // --- EMAIL LOGIC: Admin Cancellation (Apology) ---
+        try {
+            if (booking.user && booking.user.email) {
+                const subject = "⚠️ Important: Booking Cancellation Notice";
+                const message = `Dear ${booking.user.name},\n\nWe sincerely apologize, but your booking for ${booking.turf?.name || 'our turf'} on ${booking.date} has been cancelled by the venue management due to unforeseen maintenance or circumstances.\n\n💰 A FULL refund of ₹${booking.amount} has been initiated and will reach you shortly.\n\nWe are very sorry for the inconvenience caused.\n\nSincerely,\nPowerPlay Management`;
+                sendEmail(booking.user.email, subject, message);
+            }
+        } catch (emailError) {
+            console.log("Email failed:", emailError.message);
+        }
+        // -------------------------------------------------
+
         res.json({ success: true, message: "Cancelled by Admin (Full Refund)", booking });
 
     } catch (error) {
@@ -206,7 +263,7 @@ export const createBulkBooking = async (req, res) => {
 
         if (datesToBook.length === 0) return res.status(400).json({ success: false, message: "No dates selected" });
 
-        // 👇 CHANGE 2: Restored Conflict Check Logic (Crucial!)
+        // Conflict Check Logic
         const turf = await Turf.findById(turfId);
         const [reqStartStr, reqEndStr] = timeSlot.split(" - ");
         const reqStart = parseTimeToMinutes(reqStartStr);
@@ -240,7 +297,7 @@ export const createBulkBooking = async (req, res) => {
             return res.status(400).json({ success: false, message: `Conflict on ${conflictDate}. Bulk action stopped.` });
         }
 
-        // Calculate Price (Set to 0 if you want free, but better to have value)
+        // Calculate Price 
         const duration = (reqEnd - reqStart) / 60;
         const singlePrice = turf.price * duration;
 
@@ -250,9 +307,9 @@ export const createBulkBooking = async (req, res) => {
                 turf: turfId,
                 date: dateObj.toISOString().split('T')[0],
                 timeSlot,
-                amount: singlePrice, // Store actual value
+                amount: singlePrice,
                 paymentMethod: 'Offline/Bulk',
-                isPaid: false,  // Default to unpaid unless you want 'true'
+                isPaid: false,
                 status: 'booked'
             }).save();
         });

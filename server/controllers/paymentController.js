@@ -1,6 +1,8 @@
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import Booking from "../models/Booking.js";
+import User from "../models/User.js"; // <--- Import User
+import { sendEmail } from "../utils/email.js"; // <--- Import Email Utility
 import "dotenv/config";
 
 // Initialize Razorpay
@@ -20,7 +22,7 @@ export const createOrder = async (req, res) => {
 
     // Razorpay expects amount in PAISE (₹1 = 100 paise)
     const options = {
-      amount: Math.round(booking.amount * 100), 
+      amount: Math.round(booking.amount * 100),
       currency: "INR",
       receipt: `receipt_${bookingId}`,
       notes: {
@@ -30,7 +32,7 @@ export const createOrder = async (req, res) => {
 
     const order = await razorpay.orders.create(options);
 
-    // Save the Order ID immediately (Optional but good practice)
+    // Save the Order ID immediately
     booking.orderId = order.id;
     await booking.save();
 
@@ -56,14 +58,28 @@ export const verifyPayment = async (req, res) => {
 
     if (expectedSignature === razorpay_signature) {
       // ✅ Payment is Legit
-      
-      await Booking.findByIdAndUpdate(bookingId, {
+
+      const updatedBooking = await Booking.findByIdAndUpdate(bookingId, {
         isPaid: true,
         paymentMethod: "Online",
-        paymentId: razorpay_payment_id, // <--- SAVING THIS IS CRITICAL FOR REFUNDS
+        paymentId: razorpay_payment_id,
         orderId: razorpay_order_id,
         status: "booked"
-      });
+      }, { new: true }).populate('turf'); // Populate turf for email details
+
+      // --- EMAIL LOGIC: Payment Success ---
+      try {
+        const user = await User.findById(updatedBooking.user);
+        if (user && user.email) {
+          const subject = "✅ Payment Successful - Booking Confirmed";
+          const message = `Hi ${user.name},\n\nWe have received your payment of ₹${updatedBooking.amount}!\n\n🏟 Turf: ${updatedBooking.turf?.name || 'Turf'}\n📅 Date: ${new Date(updatedBooking.date).toDateString()}\n⏰ Time: ${updatedBooking.timeSlot}\n\nYour slot is secured. See you on the field!\n\n- PowerPlay Team`;
+
+          sendEmail(user.email, subject, message);
+        }
+      } catch (emailError) {
+        console.log("Email failed:", emailError.message);
+      }
+      // ------------------------------------
 
       res.json({ success: true, message: "Payment Verified Successfully" });
     } else {
