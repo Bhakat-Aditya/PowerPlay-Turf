@@ -11,7 +11,6 @@ import userRouter from './routes/userRoutes.js';
 import bookingRouter from './routes/bookingRoutes.js';
 import turfRouter from './routes/turfRoutes.js';
 import paymentRouter from './routes/paymentRoutes.js';
-// REMOVED: import paymentRouter ... (To stop Razorpay crash)
 
 connectDB();
 const app = express();
